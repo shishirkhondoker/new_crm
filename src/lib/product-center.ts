@@ -59,8 +59,8 @@ function normalizeText(value: string) {
 }
 
 function ensureProductManageAccess(actor: ProductActor) {
-  if (!["ADMIN", "SUPERVISOR"].includes(actor.role)) {
-    throw new ProductInputError("Only admin and supervisor can manage products.", 403);
+  if (!["ADMIN", "SUPERVISOR", "MARKETER"].includes(actor.role)) {
+    throw new ProductInputError("Only admin, supervisor, and marketer can manage products.", 403);
   }
 }
 

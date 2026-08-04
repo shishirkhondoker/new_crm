@@ -9152,7 +9152,7 @@ function ProductVisual({ product }: { product: ProductRow }) {
 export function ProductsPage({ role, workspace }: { role: Role; workspace: CrmWorkspace }) {
   const router = useRouter();
   const [, startRefresh] = React.useTransition();
-  const canManageProducts = role !== "MARKETER";
+  const canManageProducts = true;
   const [open, setOpen] = React.useState(false);
   const [products, setProducts] = React.useState(workspace.products);
   const [editingProductId, setEditingProductId] = React.useState<string | null>(null);
