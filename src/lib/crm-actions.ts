@@ -12,6 +12,7 @@ import { getPrisma } from "@/lib/prisma";
 import { normalizeTaskReminderValue } from "@/lib/task-reminders";
 import { buildCustomerScopeWhere, hasCustomerAccess, resolveCustomerOwnerId } from "@/lib/customer-ownership";
 import { hasLeadAccess, resolveLeadOwnerId } from "@/lib/lead-ownership";
+import { createMarketerSuggestion, markSuggestionRead } from "@/lib/suggestion-center";
 import { roleHome, type Role } from "@/lib/utils";
 
 const DEFAULT_ADMIN_EMAIL = "shajib.mugnee@gmail.com";
@@ -2434,6 +2435,43 @@ export async function unparkCustomerById(user: { id: string; role: Role }, custo
 
   revalidateCustomerViews(customer.id);
   return customer;
+}
+
+export async function sendMarketerSuggestionById(
+  sender: { id: string; role: Role },
+  recipientId: string,
+  message: string,
+) {
+  const suggestion = await createMarketerSuggestion(sender, recipientId, message);
+
+  await addTimeline({
+    title: "Suggestion Sent",
+    description: suggestion.message,
+    entity: "MarketerSuggestion",
+    entityId: suggestion.id,
+    userId: sender.id,
+  });
+
+  revalidatePath(`/marketer/suggestions`);
+  return suggestion;
+}
+
+export async function sendMarketerSuggestionAction(formData: FormData) {
+  const user = await actionUser();
+  const recipientId = text(formData, "recipientId");
+  const message = text(formData, "message");
+  if (!recipientId || !message) return;
+
+  await sendMarketerSuggestionById({ id: user.id, role: user.role as Role }, recipientId, message);
+}
+
+export async function markSuggestionReadAction(formData: FormData) {
+  const user = await actionUser();
+  const id = text(formData, "id");
+  if (!id) return;
+
+  await markSuggestionRead(user.id, id);
+  revalidatePath("/marketer/suggestions");
 }
 
 export async function createCommunicationAction(formData: FormData) {

@@ -3,6 +3,7 @@ import { TodaysPlanPage } from "@/components/crm/resource-pages";
 import { getPrisma } from "@/lib/prisma";
 import { requireCurrentUser } from "@/lib/auth";
 import { getCrmDayWindow } from "@/lib/crm-time";
+import { getUnreadSuggestionCount } from "@/lib/suggestion-center";
 
 export default async function Page() {
   const user = await requireCurrentUser("MARKETER");
@@ -28,6 +29,7 @@ export default async function Page() {
     leadCount,
     customerCount,
     coldCustomerCount,
+    suggestionCount,
     todayTaskBadgeCount,
   followUpOverdueCount,
   followUpTodayCount,
@@ -44,6 +46,7 @@ export default async function Page() {
     hasScope ? prisma.lead.count({ where: leadWhere }) : Promise.resolve(0),
     hasScope ? prisma.customerCompany.count({ where: { assignedToId: { in: scopedUserIds }, isParked: false } }) : Promise.resolve(0),
     hasScope ? prisma.customerCompany.count({ where: { assignedToId: { in: scopedUserIds }, isParked: true } }) : Promise.resolve(0),
+    hasScope && user.id ? getUnreadSuggestionCount(user.id) : Promise.resolve(0),
     hasScope
       ? prisma.task.count({
         where: {
@@ -161,6 +164,7 @@ export default async function Page() {
         todaysPlan: todaysPlanCount + todayTaskBadgeCount + followUpBadgeCount,
         products: activeProductCount,
         rewards: rewardSum._sum.points ?? 0,
+        suggestions: suggestionCount,
       }}
     >
       <TodaysPlanPage workspace={workspace} />

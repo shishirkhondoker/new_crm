@@ -181,6 +181,22 @@ model User {
   importExportLogs    ImportExportLog[]
   reportLogs          ReportLog[]
   reportExports       ReportExport[]
+  suggestionsSent     MarketerSuggestion[] @relation("SuggestionSender")
+  suggestionsReceived MarketerSuggestion[] @relation("SuggestionRecipient")
+}
+
+model MarketerSuggestion {
+  id          String    @id @default(cuid())
+  senderId    String
+  sender      User      @relation("SuggestionSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User      @relation("SuggestionRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  message     String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([recipientId, readAt])
+  @@index([senderId])
 }
 
 model UserSupervisorAssignment {

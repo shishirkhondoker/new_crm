@@ -16,6 +16,7 @@ import {
   ClipboardCheck,
   Clock3,
   Eye,
+  LayoutDashboard,
   Mail,
   MessageCircleMore,
   MessageSquarePlus,
@@ -2315,6 +2316,13 @@ function SupervisorTeamPerformancePanelV2({
                             <p className="truncate text-xs font-semibold text-slate-500">{row.designation !== "-" ? row.designation : row.role}</p>
                           </div>
                         )}
+                        <Link
+                          href={`${rolePath("SUPERVISOR", "team")}/${row.id}/dashboard`}
+                          title="View Dashboard"
+                          className="ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          <LayoutDashboard className="h-4 w-4" />
+                        </Link>
                       </div>
                     </td>
                     {(["leads", "calls", "whatsapp", "meetings", "followUps", "pendingTasks", "overdueFollowUps", "sales", "conversion"] as TeamPerformanceMetricKey[]).map((metric) => {
@@ -2443,6 +2451,13 @@ function SupervisorTeamPerformancePanelV2({
                         <div className={cn("h-full rounded-full", performanceScoreVariant(row.performanceScore))} style={{ width: `${row.performanceScore}%` }} />
                       </div>
                     </div>
+                    <Link
+                      href={`${rolePath("SUPERVISOR", "team")}/${row.id}/dashboard`}
+                      className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-800"
+                    >
+                      <LayoutDashboard className="h-3.5 w-3.5" />
+                      View Dashboard
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -4783,6 +4798,15 @@ function AdminTeamPerformancePanel({
                       <p className="truncate font-black text-slate-950">{row.name}</p>
                       <p className="truncate text-xs font-semibold text-slate-500">{row.designation !== "-" ? row.designation : row.email}</p>
                     </button>
+                    {row.roleKey === "MARKETER" ? (
+                      <Link
+                        href={`${rolePath("ADMIN", "team")}/${row.id}/dashboard`}
+                        title="View Dashboard"
+                        className="ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                      </Link>
+                    ) : null}
                   </div>
                 </td>
                 <td className="px-3 py-4">

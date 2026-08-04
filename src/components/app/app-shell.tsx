@@ -16,10 +16,12 @@ type TaskCounterContextValue = {
   leadCount: number;
   customerCount: number;
   coldCustomerCount: number;
+  suggestionCount: number;
   refreshTaskCount: () => Promise<void>;
   refreshLeadCount: () => Promise<void>;
   refreshCustomerCount: () => Promise<void>;
   refreshColdCustomerCount: () => Promise<void>;
+  refreshSuggestionCount: () => Promise<void>;
 };
 
 const TaskCounterContext = React.createContext<TaskCounterContextValue | null>(null);
@@ -76,16 +78,24 @@ function parseCustomerCount(payload: unknown) {
   return Array.isArray(rows) ? rows.length : 0;
 }
 
+function parseSuggestionCount(payload: unknown) {
+  const rows = typeof payload === "object" && payload !== null ? (payload as { rows?: unknown }).rows : undefined;
+  if (!Array.isArray(rows)) return 0;
+  return rows.filter((item) => typeof item === "object" && item !== null && !(item as { read?: unknown }).read).length;
+}
+
 function useSidebarCounterSync(
   sidebarTaskCount: number | undefined,
   sidebarLeadCount: number | undefined,
   sidebarCustomerCount: number | undefined,
   sidebarColdCustomerCount: number | undefined,
+  sidebarSuggestionCount: number | undefined,
 ) {
   const [taskCount, setTaskCount] = React.useState(sidebarTaskCount ?? 0);
   const [leadCount, setLeadCount] = React.useState(sidebarLeadCount ?? 0);
   const [customerCount, setCustomerCount] = React.useState(sidebarCustomerCount ?? 0);
   const [coldCustomerCount, setColdCustomerCount] = React.useState(sidebarColdCustomerCount ?? 0);
+  const [suggestionCount, setSuggestionCount] = React.useState(sidebarSuggestionCount ?? 0);
 
   const refreshTaskCount = React.useCallback(async () => {
     try {
@@ -135,6 +145,18 @@ function useSidebarCounterSync(
     }
   }, []);
 
+  const refreshSuggestionCount = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/suggestions", { cache: "no-store" });
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      setSuggestionCount(parseSuggestionCount(payload));
+    } catch {
+      // keep the previous count if the endpoint temporarily fails
+    }
+  }, []);
+
   React.useEffect(() => {
     setTaskCount(sidebarTaskCount ?? 0);
   }, [sidebarTaskCount]);
@@ -152,6 +174,10 @@ function useSidebarCounterSync(
   }, [sidebarColdCustomerCount]);
 
   React.useEffect(() => {
+    setSuggestionCount(sidebarSuggestionCount ?? 0);
+  }, [sidebarSuggestionCount]);
+
+  React.useEffect(() => {
     if (sidebarTaskCount === undefined) {
       void refreshTaskCount();
     }
@@ -164,17 +190,22 @@ function useSidebarCounterSync(
     if (sidebarColdCustomerCount === undefined) {
       void refreshColdCustomerCount();
     }
-  }, [refreshColdCustomerCount, refreshCustomerCount, refreshLeadCount, refreshTaskCount, sidebarColdCustomerCount, sidebarCustomerCount, sidebarLeadCount, sidebarTaskCount]);
+    if (sidebarSuggestionCount === undefined) {
+      void refreshSuggestionCount();
+    }
+  }, [refreshColdCustomerCount, refreshCustomerCount, refreshLeadCount, refreshSuggestionCount, refreshTaskCount, sidebarColdCustomerCount, sidebarCustomerCount, sidebarLeadCount, sidebarSuggestionCount, sidebarTaskCount]);
 
   return {
     taskCount,
     leadCount,
     customerCount,
     coldCustomerCount,
+    suggestionCount,
     refreshTaskCount,
     refreshLeadCount,
     refreshCustomerCount,
     refreshColdCustomerCount,
+    refreshSuggestionCount,
   };
 }
 
@@ -266,10 +297,12 @@ export function useTaskCounterContext() {
       leadCount: 0,
       customerCount: 0,
       coldCustomerCount: 0,
+      suggestionCount: 0,
       refreshTaskCount: async () => {},
       refreshLeadCount: async () => {},
       refreshCustomerCount: async () => {},
       refreshColdCustomerCount: async () => {},
+      refreshSuggestionCount: async () => {},
     } as TaskCounterContextValue;
   }
 
@@ -320,15 +353,18 @@ export function AppShell({
     leadCount,
     customerCount,
     coldCustomerCount,
+    suggestionCount,
     refreshTaskCount,
     refreshLeadCount,
     refreshCustomerCount,
     refreshColdCustomerCount,
+    refreshSuggestionCount,
   } = useSidebarCounterSync(
     sidebarCounts?.tasks,
     sidebarCounts?.leads,
     sidebarCounts?.customers,
     sidebarCounts?.coldCustomers,
+    sidebarCounts?.suggestions,
   );
   const notificationCenter = useNotificationCenter(unreadCount);
   const [collapsed, setCollapsed] = React.useState(false);
@@ -347,6 +383,7 @@ export function AppShell({
         todaysPlan: 0,
         products: 0,
         rewards: 0,
+        suggestions: suggestionCount,
       };
     }
 
@@ -356,8 +393,9 @@ export function AppShell({
       tasks: taskCount,
       customers: customerCount,
       coldCustomers: coldCustomerCount,
+      suggestions: suggestionCount,
     };
-  }, [coldCustomerCount, customerCount, leadCount, sidebarCounts, taskCount]);
+  }, [coldCustomerCount, customerCount, leadCount, sidebarCounts, suggestionCount, taskCount]);
 
   const performLiveSync = React.useCallback((reason: "focus" | "visible") => {
     window.dispatchEvent(new CustomEvent(CRM_LIVE_SYNC_EVENT, { detail: { reason, at: Date.now() } }));
@@ -365,8 +403,9 @@ export function AppShell({
     void refreshLeadCount();
     void refreshCustomerCount();
     void refreshColdCustomerCount();
+    void refreshSuggestionCount();
     void refreshNotifications();
-  }, [refreshColdCustomerCount, refreshCustomerCount, refreshLeadCount, refreshNotifications, refreshTaskCount]);
+  }, [refreshColdCustomerCount, refreshCustomerCount, refreshLeadCount, refreshNotifications, refreshSuggestionCount, refreshTaskCount]);
 
   React.useEffect(() => {
     if (!liveSyncEnabled) return;
@@ -399,10 +438,12 @@ export function AppShell({
         leadCount,
         customerCount,
         coldCustomerCount,
+        suggestionCount,
         refreshTaskCount,
         refreshLeadCount,
         refreshCustomerCount,
         refreshColdCustomerCount,
+        refreshSuggestionCount,
       }}
     >
       <NotificationCenterContext.Provider value={notificationCenter}>

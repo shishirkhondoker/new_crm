@@ -14,7 +14,7 @@ const sidebarGroupOrder = [
   { title: "", labels: ["Dashboard"] },
   { title: "CORE WORKFLOW", labels: ["Today's Task", "Follow-ups"] },
   { title: "SALES CRM", labels: ["Products", "Customers", "Cold Customers", "Leads"] },
-  { title: "COMMUNICATION", labels: ["Communication"] },
+  { title: "COMMUNICATION", labels: ["Communication", "Suggestions"] },
   { title: "TEAM", labels: ["Team"] },
   { title: "ANALYTICS", labels: ["Reports"] },
   { title: "ADMIN", labels: ["Users", "Roles & Permissions"] },
@@ -65,6 +65,7 @@ export function AppSidebar({
     todaysPlan: 0,
     products: 0,
     rewards: 0,
+    suggestions: 0,
   };
 
   const badgeValue = (label: string) => {
@@ -75,6 +76,7 @@ export function AppSidebar({
     if (label === "Today's Task" || label === "Tasks") return counts.tasks;
     if (label === "Products" || label === "Products/Services") return counts.products;
     if (label === "Rewards") return counts.rewards;
+    if (label === "Suggestions") return counts.suggestions;
     return undefined;
   };
 

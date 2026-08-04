@@ -6061,6 +6061,138 @@ export function ColdCustomersPage({ role, workspace }: { role: Role; workspace: 
   );
 }
 
+type MarketerSuggestionSentRow = {
+  id: string;
+  message: string;
+  senderName: string;
+  createdAt: string;
+};
+
+export function MarketerDashboardPreviewPanel({
+  role,
+  marketerId,
+  marketerName,
+  children,
+}: {
+  role: Role;
+  marketerId: string;
+  marketerName: string;
+  children: React.ReactNode;
+}) {
+  const [message, setMessage] = React.useState("");
+  const [sending, setSending] = React.useState(false);
+  const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [sentSuggestions, setSentSuggestions] = React.useState<MarketerSuggestionSentRow[]>([]);
+  const [loadingSent, setLoadingSent] = React.useState(true);
+
+  const refreshSentSuggestions = React.useCallback(async () => {
+    setLoadingSent(true);
+    try {
+      const response = await fetch(`/api/team/${marketerId}/suggestions`, { cache: "no-store" });
+      const result = await response.json();
+      if (response.ok && result.success && Array.isArray(result.rows)) {
+        setSentSuggestions(result.rows as MarketerSuggestionSentRow[]);
+      }
+    } catch {
+      // keep previous state on temporary failure
+    } finally {
+      setLoadingSent(false);
+    }
+  }, [marketerId]);
+
+  React.useEffect(() => {
+    void refreshSentSuggestions();
+  }, [refreshSentSuggestions]);
+
+  const handleSend = async () => {
+    if (!message.trim()) {
+      setFeedback({ type: "error", message: "Write a suggestion before sending." });
+      return;
+    }
+
+    setSending(true);
+    setFeedback(null);
+    try {
+      const response = await fetch(`/api/team/${marketerId}/suggestions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(typeof result.message === "string" ? result.message : "Failed to send suggestion.");
+      }
+
+      setMessage("");
+      setFeedback({ type: "success", message: `Suggestion sent to ${marketerName}.` });
+      void refreshSentSuggestions();
+    } catch (error) {
+      setFeedback({ type: "error", message: error instanceof Error ? error.message : "Failed to send suggestion." });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <Link
+        href={role === "ADMIN" ? "/admin/dashboard" : "/supervisor/dashboard"}
+        className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-blue-800"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to Dashboard
+      </Link>
+      <PageHeader
+        title={`${marketerName}'s Dashboard`}
+        description="Read-only preview — actions here won't affect real data. Use it to review work and send a suggestion below."
+      />
+      <div className="pointer-events-none select-none">
+        {children}
+      </div>
+      <DashboardCard title="Send Suggestion">
+        <div className="space-y-3">
+          <textarea
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            rows={3}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-blue-400 focus:outline-none"
+            placeholder={`Write a suggestion for ${marketerName}...`}
+          />
+          {feedback ? (
+            <p className={cn("rounded-lg px-3 py-2 text-xs font-semibold", feedback.type === "success" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700")}>
+              {feedback.message}
+            </p>
+          ) : null}
+          <div className="flex justify-end">
+            <Button type="button" className="min-w-32" disabled={sending} onClick={() => void handleSend()}>
+              {sending ? "Sending..." : "Send Suggestion"}
+            </Button>
+          </div>
+        </div>
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Recently Sent</p>
+          {loadingSent ? (
+            <p className="mt-2 text-sm text-slate-500">Loading...</p>
+          ) : sentSuggestions.length ? (
+            <div className="mt-3 space-y-2">
+              {sentSuggestions.map((item) => (
+                <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                  <p className="text-sm text-slate-700">{item.message}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">
+                    {item.senderName} • {new Date(item.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-slate-500">No suggestions sent to {marketerName} yet.</p>
+          )}
+        </div>
+      </DashboardCard>
+    </div>
+  );
+}
+
 export function CustomerProfilePage({
   role,
   workspace,
@@ -11700,6 +11832,97 @@ export function NotificationsPage({ workspace }: { workspace: CrmWorkspace }) {
           ))}
           {!workspace.notifications.length ? <EmptyState title="No notifications" description="System reminders and CRM updates will appear here." /> : null}
         </div>
+      </Card>
+    </>
+  );
+}
+
+type MarketerSuggestionRow = {
+  id: string;
+  message: string;
+  senderName: string;
+  senderRole: string;
+  read: boolean;
+  createdAt: string;
+};
+
+export function MarketerSuggestionsPage() {
+  const { refreshSuggestionCount } = useTaskCounterContext();
+  const [rows, setRows] = React.useState<MarketerSuggestionRow[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState("");
+  const [markingId, setMarkingId] = React.useState<string | null>(null);
+
+  const refreshSuggestions = React.useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/suggestions", { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok || !result.success || !Array.isArray(result.rows)) {
+        throw new Error(typeof result.message === "string" ? result.message : "Failed to load suggestions.");
+      }
+      setRows(result.rows as MarketerSuggestionRow[]);
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : "Failed to load suggestions.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void refreshSuggestions();
+  }, [refreshSuggestions]);
+
+  const handleMarkRead = async (id: string) => {
+    setMarkingId(id);
+    try {
+      const response = await fetch(`/api/suggestions/${id}/read`, { method: "POST" });
+      if (response.ok) {
+        setRows((current) => current.map((item) => (item.id === id ? { ...item, read: true } : item)));
+        void refreshSuggestionCount();
+      }
+    } finally {
+      setMarkingId(null);
+    }
+  };
+
+  return (
+    <>
+      <PageHeader title="Suggestions" description="Feedback and suggestions from your admin/supervisor after reviewing your dashboard." />
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>
+      ) : null}
+      <Card className="p-5">
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            Loading suggestions...
+          </div>
+        ) : rows.length ? (
+          <div className="space-y-3">
+            {rows.map((item) => (
+              <div key={item.id} className={cn("flex flex-col gap-3 rounded-xl border p-4 md:flex-row md:items-start md:justify-between", item.read ? "border-slate-100 bg-slate-50" : "border-blue-100 bg-blue-50/70")}>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-black text-slate-950">{item.senderName}</h3>
+                    <Badge variant="neutral">{item.senderRole}</Badge>
+                    {!item.read ? <Badge variant="danger">New</Badge> : null}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-700">{item.message}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">{new Date(item.createdAt).toLocaleString()}</p>
+                </div>
+                {!item.read ? (
+                  <Button type="button" variant="outline" size="sm" disabled={markingId === item.id} onClick={() => void handleMarkRead(item.id)}>
+                    {markingId === item.id ? "Marking..." : "Mark Read"}
+                  </Button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="No suggestions yet" description="Suggestions from your admin/supervisor will show up here." />
+        )}
       </Card>
     </>
   );

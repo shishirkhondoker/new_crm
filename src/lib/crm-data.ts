@@ -5,6 +5,7 @@ import { buildCustomerScopeWhere, getMarketerScopeUserIds } from "@/lib/customer
 import { getScopedLeadUserIds } from "@/lib/lead-ownership";
 import { syncColdCustomerReminders } from "@/lib/notification-center";
 import { getPrisma } from "@/lib/prisma";
+import { getUnreadSuggestionCount } from "@/lib/suggestion-center";
 import { getCompletedWorkItems, getTodayWorkQueue, type CompletedWorkItem, type TodayWorkQueueItem } from "@/lib/task-center";
 import { type Role, type ShellUser } from "@/lib/utils";
 
@@ -604,6 +605,7 @@ export type CrmWorkspace = {
     todaysPlan: number;
     products: number;
     rewards: number;
+    suggestions: number;
   };
 };
 
@@ -3921,6 +3923,8 @@ export async function getCrmWorkspace(role: Role, user: ShellUser, options?: Tea
       }, {}),
   }));
 
+  const suggestionCount = role === "MARKETER" && user.id ? await getUnreadSuggestionCount(user.id) : 0;
+
   return {
     user,
     unreadCount: notificationRows.filter((item) => !item.read).length,
@@ -3990,6 +3994,7 @@ export async function getCrmWorkspace(role: Role, user: ShellUser, options?: Tea
       todaysPlan: todaysPlanCount + todayTaskBadgeCount + followUpBadgeCount,
       products: activeProductCount,
       rewards: rewardAggregate._sum.points ?? 0,
+      suggestions: suggestionCount,
     },
   };
 }
@@ -4645,6 +4650,8 @@ export async function getDashboardWorkspace(role: Role, user: ShellUser, options
       remainingCompanies: 0,
     };
 
+  const suggestionCount = role === "MARKETER" && user.id ? await getUnreadSuggestionCount(user.id) : 0;
+
   return {
     user,
     unreadCount,
@@ -4687,6 +4694,7 @@ export async function getDashboardWorkspace(role: Role, user: ShellUser, options
       todaysPlan: todaysPlanCount + unifiedTodayWorkCount,
       products: activeProductCount,
       rewards: rewardAggregate._sum.points ?? 0,
+      suggestions: suggestionCount,
     },
   };
 }
