@@ -72,7 +72,7 @@ export async function GET(request: Request) {
     const where = await buildCustomerScopeWhere(
       prisma,
       { id: auth.user.id, role: auth.user.role },
-      { search },
+      { search, parkedView: "exclude" },
     );
 
     const rows = await prisma.customerCompany.findMany({

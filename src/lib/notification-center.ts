@@ -1,6 +1,7 @@
 import { format, isBefore, startOfDay } from "date-fns";
 import type { NotificationType } from "@prisma/client";
 import { getPrisma } from "@/lib/prisma";
+import { getSupervisorsForMarketer } from "@/lib/customer-ownership";
 import { taskReminderLabel, taskReminderOffsetMs } from "@/lib/task-reminders";
 import type { Role } from "@/lib/utils";
 
@@ -39,6 +40,7 @@ function notificationHref(user: RequestUser, input: {
   if (input.followUpCompanyId) return `/customers/${input.followUpCompanyId}`;
   if (input.entity === "Task") return rolePath(user.role, "tasks");
   if (input.entity === "FollowUp") return rolePath(user.role, "follow-ups");
+  if (input.entity === "CustomerCompany" && input.entityId) return `/customers/${input.entityId}`;
   return notificationFallbackHref(user.role);
 }
 
@@ -107,6 +109,75 @@ async function sendDueFollowUpEmail(input: {
   } catch (error) {
     console.warn("Follow-up reminder email could not be sent.", error);
     return false;
+  }
+}
+
+export async function syncColdCustomerReminders() {
+  const prisma = getPrisma();
+  const now = new Date();
+
+  const dueCompanies = await prisma.customerCompany.findMany({
+    where: {
+      isParked: true,
+      parkedUntil: { lte: now },
+    },
+    select: {
+      id: true,
+      name: true,
+      parkedNote: true,
+      parkedAt: true,
+      parkedById: true,
+      assignedToId: true,
+    },
+    take: 200,
+  });
+
+  if (!dueCompanies.length) return;
+
+  const admins = await prisma.user.findMany({
+    where: { role: "ADMIN", status: "ACTIVE" },
+    select: { id: true },
+  });
+  const adminIds = admins.map((admin) => admin.id);
+
+  for (const company of dueCompanies) {
+    const marketerId = company.parkedById ?? company.assignedToId;
+    if (!marketerId) continue;
+
+    const supervisorIds = await getSupervisorsForMarketer(prisma, marketerId);
+    const recipientIds = Array.from(new Set([marketerId, ...supervisorIds, ...adminIds]));
+
+    const existing = await prisma.notification.findMany({
+      where: {
+        type: "COLD_CUSTOMER_DUE",
+        entity: "CustomerCompany",
+        entityId: company.id,
+        recipientId: { in: recipientIds },
+        ...(company.parkedAt ? { createdAt: { gte: company.parkedAt } } : {}),
+      },
+      select: { recipientId: true },
+    });
+    const alreadyNotified = new Set(existing.map((item) => item.recipientId));
+    const pendingRecipients = recipientIds.filter((id) => !alreadyNotified.has(id));
+
+    if (!pendingRecipients.length) continue;
+
+    await Promise.all(
+      pendingRecipients.map((recipientId) =>
+        prisma.notification.create({
+          data: {
+            recipientId,
+            title: "Cold Customer Follow-up Due",
+            message: company.parkedNote
+              ? `${company.name} was parked for follow-up — ${company.parkedNote}`
+              : `${company.name} is due for a follow-up check-in.`,
+            type: "COLD_CUSTOMER_DUE",
+            entity: "CustomerCompany",
+            entityId: company.id,
+          },
+        }),
+      ),
+    );
   }
 }
 

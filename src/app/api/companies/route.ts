@@ -47,6 +47,7 @@ export async function GET(request: Request) {
         search: query,
         city,
         industry,
+        parkedView: "exclude",
       },
     );
     const rows = await prisma.customerCompany.findMany({

@@ -14,8 +14,12 @@ type SidebarCounts = Pick<CrmWorkspace, "sidebarCounts">["sidebarCounts"];
 type TaskCounterContextValue = {
   taskCount: number;
   leadCount: number;
+  customerCount: number;
+  coldCustomerCount: number;
   refreshTaskCount: () => Promise<void>;
   refreshLeadCount: () => Promise<void>;
+  refreshCustomerCount: () => Promise<void>;
+  refreshColdCustomerCount: () => Promise<void>;
 };
 
 const TaskCounterContext = React.createContext<TaskCounterContextValue | null>(null);
@@ -56,9 +60,32 @@ function parseLeadCount(payload: unknown) {
   return Math.trunc(parsed);
 }
 
-function useSidebarCounterSync(sidebarTaskCount: number | undefined, sidebarLeadCount: number | undefined) {
+function parseColdCustomerCount(payload: unknown) {
+  const rows = typeof payload === "object" && payload !== null ? (payload as { rows?: unknown }).rows : undefined;
+  if (!Array.isArray(rows)) return 0;
+  return rows.length;
+}
+
+function parseCustomerCount(payload: unknown) {
+  const summary = typeof payload === "object" && payload !== null ? (payload as { summary?: unknown }).summary : undefined;
+  const count = typeof summary === "object" && summary !== null ? (summary as { count?: unknown }).count : undefined;
+  const parsed = Number(count);
+  if (Number.isFinite(parsed) && parsed >= 0) return Math.trunc(parsed);
+
+  const rows = typeof payload === "object" && payload !== null ? (payload as { rows?: unknown }).rows : undefined;
+  return Array.isArray(rows) ? rows.length : 0;
+}
+
+function useSidebarCounterSync(
+  sidebarTaskCount: number | undefined,
+  sidebarLeadCount: number | undefined,
+  sidebarCustomerCount: number | undefined,
+  sidebarColdCustomerCount: number | undefined,
+) {
   const [taskCount, setTaskCount] = React.useState(sidebarTaskCount ?? 0);
   const [leadCount, setLeadCount] = React.useState(sidebarLeadCount ?? 0);
+  const [customerCount, setCustomerCount] = React.useState(sidebarCustomerCount ?? 0);
+  const [coldCustomerCount, setColdCustomerCount] = React.useState(sidebarColdCustomerCount ?? 0);
 
   const refreshTaskCount = React.useCallback(async () => {
     try {
@@ -84,6 +111,30 @@ function useSidebarCounterSync(sidebarTaskCount: number | undefined, sidebarLead
     }
   }, []);
 
+  const refreshCustomerCount = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/customers", { cache: "no-store" });
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      setCustomerCount(parseCustomerCount(payload));
+    } catch {
+      // keep the previous count if the endpoint temporarily fails
+    }
+  }, []);
+
+  const refreshColdCustomerCount = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/customers/cold", { cache: "no-store" });
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      setColdCustomerCount(parseColdCustomerCount(payload));
+    } catch {
+      // keep the previous count if the endpoint temporarily fails
+    }
+  }, []);
+
   React.useEffect(() => {
     setTaskCount(sidebarTaskCount ?? 0);
   }, [sidebarTaskCount]);
@@ -93,19 +144,37 @@ function useSidebarCounterSync(sidebarTaskCount: number | undefined, sidebarLead
   }, [sidebarLeadCount]);
 
   React.useEffect(() => {
+    setCustomerCount(sidebarCustomerCount ?? 0);
+  }, [sidebarCustomerCount]);
+
+  React.useEffect(() => {
+    setColdCustomerCount(sidebarColdCustomerCount ?? 0);
+  }, [sidebarColdCustomerCount]);
+
+  React.useEffect(() => {
     if (sidebarTaskCount === undefined) {
       void refreshTaskCount();
     }
     if (sidebarLeadCount === undefined) {
       void refreshLeadCount();
     }
-  }, [refreshLeadCount, refreshTaskCount, sidebarLeadCount, sidebarTaskCount]);
+    if (sidebarCustomerCount === undefined) {
+      void refreshCustomerCount();
+    }
+    if (sidebarColdCustomerCount === undefined) {
+      void refreshColdCustomerCount();
+    }
+  }, [refreshColdCustomerCount, refreshCustomerCount, refreshLeadCount, refreshTaskCount, sidebarColdCustomerCount, sidebarCustomerCount, sidebarLeadCount, sidebarTaskCount]);
 
   return {
     taskCount,
     leadCount,
+    customerCount,
+    coldCustomerCount,
     refreshTaskCount,
     refreshLeadCount,
+    refreshCustomerCount,
+    refreshColdCustomerCount,
   };
 }
 
@@ -192,7 +261,16 @@ function useNotificationCenter(initialUnreadCount: number) {
 export function useTaskCounterContext() {
   const context = React.useContext(TaskCounterContext);
   if (!context) {
-    return { taskCount: 0, leadCount: 0, refreshTaskCount: async () => {}, refreshLeadCount: async () => {} } as TaskCounterContextValue;
+    return {
+      taskCount: 0,
+      leadCount: 0,
+      customerCount: 0,
+      coldCustomerCount: 0,
+      refreshTaskCount: async () => {},
+      refreshLeadCount: async () => {},
+      refreshCustomerCount: async () => {},
+      refreshColdCustomerCount: async () => {},
+    } as TaskCounterContextValue;
   }
 
   return context;
@@ -237,7 +315,21 @@ export function AppShell({
   sidebarCounts?: SidebarCounts;
   children: ReactNode;
 }) {
-  const { taskCount, leadCount, refreshTaskCount, refreshLeadCount } = useSidebarCounterSync(sidebarCounts?.tasks, sidebarCounts?.leads);
+  const {
+    taskCount,
+    leadCount,
+    customerCount,
+    coldCustomerCount,
+    refreshTaskCount,
+    refreshLeadCount,
+    refreshCustomerCount,
+    refreshColdCustomerCount,
+  } = useSidebarCounterSync(
+    sidebarCounts?.tasks,
+    sidebarCounts?.leads,
+    sidebarCounts?.customers,
+    sidebarCounts?.coldCustomers,
+  );
   const notificationCenter = useNotificationCenter(unreadCount);
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -249,7 +341,8 @@ export function AppShell({
       return {
         followUps: 0,
         leads: leadCount,
-        customers: 0,
+        customers: customerCount,
+        coldCustomers: coldCustomerCount,
         tasks: taskCount,
         todaysPlan: 0,
         products: 0,
@@ -261,15 +354,19 @@ export function AppShell({
       ...sidebarCounts,
       leads: leadCount,
       tasks: taskCount,
+      customers: customerCount,
+      coldCustomers: coldCustomerCount,
     };
-  }, [leadCount, sidebarCounts, taskCount]);
+  }, [coldCustomerCount, customerCount, leadCount, sidebarCounts, taskCount]);
 
   const performLiveSync = React.useCallback((reason: "focus" | "visible") => {
     window.dispatchEvent(new CustomEvent(CRM_LIVE_SYNC_EVENT, { detail: { reason, at: Date.now() } }));
     void refreshTaskCount();
     void refreshLeadCount();
+    void refreshCustomerCount();
+    void refreshColdCustomerCount();
     void refreshNotifications();
-  }, [refreshLeadCount, refreshNotifications, refreshTaskCount]);
+  }, [refreshColdCustomerCount, refreshCustomerCount, refreshLeadCount, refreshNotifications, refreshTaskCount]);
 
   React.useEffect(() => {
     if (!liveSyncEnabled) return;
@@ -296,7 +393,18 @@ export function AppShell({
   }, [liveSyncEnabled, performLiveSync]);
 
   return (
-    <TaskCounterContext.Provider value={{ taskCount, leadCount, refreshTaskCount, refreshLeadCount }}>
+    <TaskCounterContext.Provider
+      value={{
+        taskCount,
+        leadCount,
+        customerCount,
+        coldCustomerCount,
+        refreshTaskCount,
+        refreshLeadCount,
+        refreshCustomerCount,
+        refreshColdCustomerCount,
+      }}
+    >
       <NotificationCenterContext.Provider value={notificationCenter}>
       <div className="min-h-screen bg-slate-50 text-slate-950">
         <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">

@@ -6,12 +6,6 @@ import { requireRequestUser } from "@/lib/request-user";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function normalizeLimit(value: string | null) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 50;
-  return Math.min(parsed, 100);
-}
-
 export async function GET(request: Request) {
   try {
     const auth = await requireRequestUser(["ADMIN", "SUPERVISOR", "MARKETER"]);
@@ -21,34 +15,44 @@ export async function GET(request: Request) {
 
     const prisma = getPrisma();
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q")?.trim() ?? "";
-    const limit = normalizeLimit(searchParams.get("limit"));
+    const search = (searchParams.get("search") || "").trim();
+
     const where = await buildCustomerScopeWhere(
       prisma,
       { id: auth.user.id, role: auth.user.role },
-      { search: query, parkedView: "exclude" },
+      { search, parkedView: "only" },
     );
 
     const rows = await prisma.customerCompany.findMany({
       where,
-      select: {
-        id: true,
-        name: true,
+      include: {
+        assignedTo: { select: { id: true, name: true } },
+        parkedBy: { select: { id: true, name: true } },
       },
-      orderBy: { name: "asc" },
-      take: limit,
+      orderBy: { parkedUntil: "asc" },
+      take: 2000,
     });
 
     return NextResponse.json({
       success: true,
-      rows: rows.map((row) => ({ value: row.id, label: row.name })),
+      rows: rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        industry: row.industry,
+        city: row.city,
+        phone: row.phone,
+        assignedToId: row.assignedToId,
+        assignedTo: row.assignedTo?.name ?? "-",
+        parkedUntil: row.parkedUntil ? row.parkedUntil.toISOString() : null,
+        parkedNote: row.parkedNote ?? "",
+        parkedAt: row.parkedAt ? row.parkedAt.toISOString() : null,
+        parkedById: row.parkedById,
+        parkedBy: row.parkedBy?.name ?? "-",
+      })),
     });
   } catch (error) {
     return NextResponse.json(
-      {
-        success: false,
-        message: error instanceof Error ? error.message : "Failed to search companies.",
-      },
+      { success: false, message: error instanceof Error ? error.message : "Failed to load cold customers." },
       { status: 500 },
     );
   }

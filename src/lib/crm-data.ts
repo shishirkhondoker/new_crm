@@ -3,6 +3,7 @@ import { addDays, isBefore } from "date-fns";
 import { formatCrmDate, getCrmDayWindow, getCrmPeriodWindow, isBeforeCrmDay, isSameCrmDay, type CrmPeriod } from "@/lib/crm-time";
 import { buildCustomerScopeWhere, getMarketerScopeUserIds } from "@/lib/customer-ownership";
 import { getScopedLeadUserIds } from "@/lib/lead-ownership";
+import { syncColdCustomerReminders } from "@/lib/notification-center";
 import { getPrisma } from "@/lib/prisma";
 import { getCompletedWorkItems, getTodayWorkQueue, type CompletedWorkItem, type TodayWorkQueueItem } from "@/lib/task-center";
 import { type Role, type ShellUser } from "@/lib/utils";
@@ -598,6 +599,7 @@ export type CrmWorkspace = {
     followUps: number;
     leads: number;
     customers: number;
+    coldCustomers: number;
     tasks: number;
     todaysPlan: number;
     products: number;
@@ -2775,6 +2777,12 @@ async function ensureCrmFoundation() {
       skipDuplicates: true,
     });
   }
+
+  try {
+    await syncColdCustomerReminders();
+  } catch (error) {
+    console.warn("Cold customer reminder sync skipped.", error);
+  }
 }
 
 async function getScopedUserIds(role: Role, user: ShellUser) {
@@ -3057,6 +3065,7 @@ export async function searchCrmActivities({
   const companyWhere: Prisma.Prisma.CustomerCompanyWhereInput = await buildCustomerScopeWhere(
     prisma,
     { id: user.id ?? "", role },
+    { parkedView: "exclude" },
   );
   const text = { contains: query.trim(), mode: "insensitive" } as const;
   const phoneQuery = query.trim();
@@ -3232,6 +3241,12 @@ export async function getCrmWorkspace(role: Role, user: ShellUser, options?: Tea
   const companyWhere: Prisma.Prisma.CustomerCompanyWhereInput = await buildCustomerScopeWhere(
     prisma,
     { id: user.id ?? "", role },
+    { parkedView: "exclude" },
+  );
+  const coldCompanyWhere: Prisma.Prisma.CustomerCompanyWhereInput = await buildCustomerScopeWhere(
+    prisma,
+    { id: user.id ?? "", role },
+    { parkedView: "only" },
   );
 
   const taskWhere: Prisma.Prisma.TaskWhereInput = scopedUserIds
@@ -3292,6 +3307,7 @@ export async function getCrmWorkspace(role: Role, user: ShellUser, options?: Tea
     reportLogs,
     leadCount,
     customerCount,
+    coldCustomerCount,
     todaysPlanCount,
     todayTaskBadgeCount,
     followUpBadgeCount,
@@ -3419,6 +3435,7 @@ export async function getCrmWorkspace(role: Role, user: ShellUser, options?: Tea
     }),
     prisma.lead.count({ where: leadWhere }),
     prisma.customerCompany.count({ where: companyWhere }),
+    prisma.customerCompany.count({ where: coldCompanyWhere }),
     prisma.todayPlan.count({ where: planWidgetWhere }),
     prisma.task.count({ where: todayTaskBadgeWhere }),
     prisma.followUp.count({ where: followUpBadgeWhere }),
@@ -3968,6 +3985,7 @@ export async function getCrmWorkspace(role: Role, user: ShellUser, options?: Tea
       followUps: role === "MARKETER" ? followUpSummary.today : followUpSummary.actionable,
       leads: leadCount,
       customers: customerCount,
+      coldCustomers: coldCustomerCount,
       tasks: todayWorkItems.length,
       todaysPlan: todaysPlanCount + todayTaskBadgeCount + followUpBadgeCount,
       products: activeProductCount,
@@ -4007,6 +4025,12 @@ export async function getDashboardWorkspace(role: Role, user: ShellUser, options
   const companyWhere: Prisma.Prisma.CustomerCompanyWhereInput = await buildCustomerScopeWhere(
     prisma,
     { id: user.id ?? "", role },
+    { parkedView: "exclude" },
+  );
+  const coldCompanyWhere: Prisma.Prisma.CustomerCompanyWhereInput = await buildCustomerScopeWhere(
+    prisma,
+    { id: user.id ?? "", role },
+    { parkedView: "only" },
   );
 
   const taskWhere: Prisma.Prisma.TaskWhereInput = scopedUserIds
@@ -4099,6 +4123,7 @@ export async function getDashboardWorkspace(role: Role, user: ShellUser, options
     employeeRecords,
     leadCount,
     customerCount,
+    coldCustomerCount,
     todaysPlanCount,
     todayTaskBadgeCount,
     followUpBadgeCount,
@@ -4182,6 +4207,7 @@ export async function getDashboardWorkspace(role: Role, user: ShellUser, options
     }),
     prisma.lead.count({ where: leadWhere }),
     prisma.customerCompany.count({ where: companyWhere }),
+    prisma.customerCompany.count({ where: coldCompanyWhere }),
     prisma.todayPlan.count({ where: planWidgetWhere }),
     prisma.task.count({ where: todayTaskBadgeWhere }),
     prisma.followUp.count({ where: followUpBadgeWhere }),
@@ -4656,6 +4682,7 @@ export async function getDashboardWorkspace(role: Role, user: ShellUser, options
       followUps: role === "MARKETER" ? followUpSummary.today : followUpSummary.actionable,
       leads: leadCount,
       customers: customerCount,
+      coldCustomers: coldCustomerCount,
       tasks: activeTodayWorkCount,
       todaysPlan: todaysPlanCount + unifiedTodayWorkCount,
       products: activeProductCount,

@@ -57,6 +57,29 @@ async function getSupervisorAssignedMarketers(
   });
 }
 
+export async function getSupervisorsForMarketer(
+  prisma: ReturnType<typeof getPrisma>,
+  marketerId: string,
+) {
+  const marketer = await prisma.user.findUnique({
+    where: { id: marketerId },
+    select: {
+      supervisorId: true,
+      supervisorAssignmentsAsMarketer: { select: { supervisorId: true } },
+    },
+  });
+
+  if (!marketer) return [];
+
+  const supervisorIds = new Set<string>();
+  if (marketer.supervisorId) supervisorIds.add(marketer.supervisorId);
+  for (const assignment of marketer.supervisorAssignmentsAsMarketer) {
+    supervisorIds.add(assignment.supervisorId);
+  }
+
+  return Array.from(supervisorIds);
+}
+
 export async function getMarketerScopeUserIds(
   prisma: ReturnType<typeof getPrisma>,
   actor: MarketerScopedActor,
@@ -205,10 +228,23 @@ export async function buildCustomerScopeWhere(
     industry?: string;
     assignedToId?: string;
     customerId?: string;
+    /**
+     * Only browse/list views should set this. Leaving it unset means "don't
+     * filter by parked status at all" — required so a direct customerId
+     * lookup, task/follow-up creation, or the un-park action can still reach
+     * a parked customer even though it's hidden from the main list.
+     */
+    parkedView?: "exclude" | "only";
   },
 ) {
   const scopeIds = await getMarketerScopeUserIds(prisma, actor);
   const conditions: Prisma.Prisma.CustomerCompanyWhereInput[] = [];
+
+  if (filters?.parkedView === "exclude") {
+    conditions.push({ isParked: false });
+  } else if (filters?.parkedView === "only") {
+    conditions.push({ isParked: true });
+  }
 
   const normalizeSearchKeyword = (value: string) =>
     value

@@ -449,6 +449,9 @@ function revalidateCustomerViews(customerId?: string) {
     "/admin/customers",
     "/supervisor/customers",
     "/marketer/customers",
+    "/admin/cold-customers",
+    "/supervisor/cold-customers",
+    "/marketer/cold-customers",
     customerId ? `/customers/${customerId}` : undefined,
   ].filter((path): path is string => Boolean(path)).forEach((path) => revalidatePath(path));
 }
@@ -2365,6 +2368,72 @@ export async function updateFollowUpStatusAction(formData: FormData) {
   const status = text(formData, "status");
   if (!id || !status) return;
   await updateFollowUpStatusById({ id: user.id, role: user.role as Role }, id, status);
+}
+
+export async function parkCustomerById(
+  user: { id: string; role: Role },
+  customerId: string,
+  input: { until: string; note?: string },
+) {
+  const prisma = getPrisma();
+  const allowed = await hasCustomerAccess(prisma, { id: user.id, role: user.role }, customerId);
+  if (!allowed) {
+    throw new Error("Customer not found or you do not have access.");
+  }
+
+  const parkedUntil = new Date(input.until);
+  if (Number.isNaN(parkedUntil.getTime())) {
+    throw new Error("Enter a valid date to park this customer until.");
+  }
+
+  const note = input.note?.trim() || undefined;
+  const customer = await prisma.customerCompany.update({
+    where: { id: customerId },
+    data: {
+      isParked: true,
+      parkedUntil,
+      parkedNote: note ?? null,
+      parkedAt: new Date(),
+      parkedById: user.id,
+    },
+  });
+
+  await addTimeline({
+    title: "Customer Parked",
+    description: `Moved to Cold Customers until ${format(parkedUntil, "dd MMM yyyy")}${note ? ` — ${note}` : ""}`,
+    entity: "CustomerCompany",
+    entityId: customer.id,
+    userId: user.id,
+    companyId: customer.id,
+  });
+
+  revalidateCustomerViews(customer.id);
+  return customer;
+}
+
+export async function unparkCustomerById(user: { id: string; role: Role }, customerId: string) {
+  const prisma = getPrisma();
+  const allowed = await hasCustomerAccess(prisma, { id: user.id, role: user.role }, customerId);
+  if (!allowed) {
+    throw new Error("Customer not found or you do not have access.");
+  }
+
+  const customer = await prisma.customerCompany.update({
+    where: { id: customerId },
+    data: { isParked: false },
+  });
+
+  await addTimeline({
+    title: "Customer Un-parked",
+    description: "Brought back to the active customer list.",
+    entity: "CustomerCompany",
+    entityId: customer.id,
+    userId: user.id,
+    companyId: customer.id,
+  });
+
+  revalidateCustomerViews(customer.id);
+  return customer;
 }
 
 export async function createCommunicationAction(formData: FormData) {

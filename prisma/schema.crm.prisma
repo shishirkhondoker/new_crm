@@ -109,6 +109,7 @@ enum NotificationType {
   SYSTEM_ALERT
   REWARD_EARNED
   TARGET_ALERT
+  COLD_CUSTOMER_DUE
 }
 
 enum ImportExportType {
@@ -152,6 +153,7 @@ model User {
   supervisorAssignmentsAsSupervisor UserSupervisorAssignment[] @relation("SupervisorAssignmentsSupervisor")
   supervisorAssignmentsAsMarketer   UserSupervisorAssignment[] @relation("SupervisorAssignmentsMarketer")
   assignedCompanies   CustomerCompany[]    @relation("CompanyAssignedTo")
+  parkedCompanies     CustomerCompany[]    @relation("CompanyParkedBy")
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   otps                OTP[]
@@ -225,6 +227,12 @@ model CustomerCompany {
   assignedToId   String?
   assignedTo     User?              @relation("CompanyAssignedTo", fields: [assignedToId], references: [id])
   status         UserStatus         @default(ACTIVE)
+  isParked       Boolean            @default(false)
+  parkedUntil    DateTime?
+  parkedNote     String?
+  parkedAt       DateTime?
+  parkedById     String?
+  parkedBy       User?              @relation("CompanyParkedBy", fields: [parkedById], references: [id])
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   contacts       ContactPerson[]
@@ -238,6 +246,8 @@ model CustomerCompany {
   quotations     Quotation[]
   attachments    Attachment[]
   timelineItems  ActivityTimeline[]
+
+  @@index([isParked])
 }
 
 model ContactPerson {

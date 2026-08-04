@@ -27,6 +27,7 @@ export default async function Page() {
     unreadCount,
     leadCount,
     customerCount,
+    coldCustomerCount,
     todayTaskBadgeCount,
   followUpOverdueCount,
   followUpTodayCount,
@@ -41,7 +42,8 @@ export default async function Page() {
   ] = await Promise.all([
     hasScope ? prisma.notification.count({ where: { recipientId: { in: scopedUserIds }, readAt: null } }) : Promise.resolve(0),
     hasScope ? prisma.lead.count({ where: leadWhere }) : Promise.resolve(0),
-    hasScope ? prisma.customerCompany.count({ where: { assignedToId: { in: scopedUserIds } } }) : Promise.resolve(0),
+    hasScope ? prisma.customerCompany.count({ where: { assignedToId: { in: scopedUserIds }, isParked: false } }) : Promise.resolve(0),
+    hasScope ? prisma.customerCompany.count({ where: { assignedToId: { in: scopedUserIds }, isParked: true } }) : Promise.resolve(0),
     hasScope
       ? prisma.task.count({
         where: {
@@ -154,6 +156,7 @@ export default async function Page() {
         followUps: followUpSummary.actionable,
         leads: leadCount,
         customers: customerCount,
+        coldCustomers: coldCustomerCount,
         tasks: todayTaskBadgeCount,
         todaysPlan: todaysPlanCount + todayTaskBadgeCount + followUpBadgeCount,
         products: activeProductCount,

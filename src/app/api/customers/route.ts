@@ -271,6 +271,7 @@ export async function GET(request: Request) {
         search,
         city,
         industry,
+        parkedView: "exclude",
         assignedToId,
       },
     );

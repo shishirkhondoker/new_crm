@@ -34,6 +34,7 @@ import {
   Send,
   Settings,
   SlidersHorizontal,
+  Snowflake,
   Target,
   Star,
   Upload,
@@ -3074,6 +3075,7 @@ function CustomerQuickSummaryPanel({
   onEditFollowUp,
   onAddTask,
   onEditTask,
+  onParked,
 }: {
   customer: CompanyRow | null;
   open: boolean;
@@ -3083,10 +3085,17 @@ function CustomerQuickSummaryPanel({
   onEditFollowUp?: (item: EditableFollowUpModalItem) => void;
   onAddTask?: (item: EditableTaskModalItem) => void;
   onEditTask?: (item: EditableTaskModalItem) => void;
+  onParked?: () => void;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { payload, loading, error } = useCustomerQuickContext(customer?.id, open, refreshKey);
+  const { refreshCustomerCount, refreshColdCustomerCount } = useTaskCounterContext();
+  const [parkModalOpen, setParkModalOpen] = React.useState(false);
+  const [parkUntil, setParkUntil] = React.useState("");
+  const [parkNote, setParkNote] = React.useState("");
+  const [parkPending, setParkPending] = React.useState(false);
+  const [parkError, setParkError] = React.useState("");
 
   if (!customer) return null;
 
@@ -3165,6 +3174,37 @@ function CustomerQuickSummaryPanel({
     cleanCustomerSnapshotValue(profileCustomer.cityOrZilla),
   );
 
+  const submitParkCustomer = async () => {
+    if (!parkUntil) {
+      setParkError("Select the date to park this customer until.");
+      return;
+    }
+
+    setParkPending(true);
+    setParkError("");
+    try {
+      const response = await fetch(`/api/customers/${profileCustomer.id}/park`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ until: parkUntil, note: parkNote }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        setParkError(typeof result.message === "string" ? result.message : "Failed to park customer.");
+        return;
+      }
+
+      setParkModalOpen(false);
+      void refreshCustomerCount();
+      void refreshColdCustomerCount();
+      onParked?.();
+    } catch (error) {
+      setParkError(error instanceof Error ? error.message : "Failed to park customer.");
+    } finally {
+      setParkPending(false);
+    }
+  };
+
   return (
     <div className="space-y-3 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-slate-50 p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -3205,6 +3245,20 @@ function CustomerQuickSummaryPanel({
             <MessageSquare className="h-4 w-4" />
             Activity Log
           </Link>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setParkError("");
+              setParkUntil("");
+              setParkNote("");
+              setParkModalOpen(true);
+            }}
+          >
+            <Snowflake className="h-4 w-4" />
+            Move to Cold Customers
+          </Button>
         </div>
       </div>
 
@@ -3318,6 +3372,47 @@ function CustomerQuickSummaryPanel({
           </div>
         ) : null}
       </div>
+
+      <FormModal
+        title="Move to Cold Customers"
+        open={parkModalOpen}
+        onClose={() => !parkPending && setParkModalOpen(false)}
+        panelClassName="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            {profileCustomer.name} will be hidden from the main Customers list until the date below. You and your supervisor/admin will get a reminder when it&apos;s due — nothing is deleted, and you can bring it back any time from Cold Customers.
+          </p>
+          <label className="block space-y-1.5">
+            <span className="text-sm font-semibold text-slate-700">Follow-up again on</span>
+            <Input
+              type="date"
+              value={parkUntil}
+              onChange={(event) => setParkUntil(event.target.value)}
+              className="h-10 bg-white text-sm"
+            />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-sm font-semibold text-slate-700">Note / Reason (optional)</span>
+            <textarea
+              value={parkNote}
+              onChange={(event) => setParkNote(event.target.value)}
+              rows={3}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-blue-400 focus:outline-none"
+              placeholder="e.g. No budget right now, revisit next year."
+            />
+          </label>
+          {parkError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{parkError}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" disabled={parkPending} onClick={() => setParkModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" className="min-w-32" disabled={parkPending} onClick={submitParkCustomer}>
+              {parkPending ? "Saving..." : "Move to Cold Customers"}
+            </Button>
+          </div>
+        </div>
+      </FormModal>
     </div>
   );
 }
@@ -3328,12 +3423,14 @@ function CustomerViewModal({
   customer,
   open,
   onClose,
+  onParked,
 }: {
   role: Role;
   workspace: CrmWorkspace;
   customer: CompanyRow | null;
   open: boolean;
   onClose: () => void;
+  onParked?: () => void;
 }) {
   const [editingFollowUp, setEditingFollowUp] = React.useState<EditableFollowUpModalItem | null>(null);
   const [editingTask, setEditingTask] = React.useState<EditableTaskModalItem | null>(null);
@@ -3390,6 +3487,7 @@ function CustomerViewModal({
             onEditFollowUp={setEditingFollowUp}
             onAddTask={setEditingTask}
             onEditTask={setEditingTask}
+            onParked={onParked}
           />
           <dl className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <DetailRow label="Added By" value={customer.createdBy || customer.assignedTo || "-"} />
@@ -5774,7 +5872,17 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
           });
         }}
       />
-      <CustomerViewModal role={role} workspace={workspace} open={Boolean(viewCustomer)} customer={viewCustomer} onClose={() => setViewCustomer(null)} />
+      <CustomerViewModal
+        role={role}
+        workspace={workspace}
+        open={Boolean(viewCustomer)}
+        customer={viewCustomer}
+        onClose={() => setViewCustomer(null)}
+        onParked={() => {
+          setViewCustomer(null);
+          void refreshCustomers().catch(() => {});
+        }}
+      />
       <CustomerEditModal workspace={workspace} customer={editCustomer} open={Boolean(editCustomer)} onDone={handleEditDone} onClose={() => setEditCustomer(null)} />
       <FormModal open={Boolean(deleteCustomer)} title="Delete Customer" onClose={() => !deleting && setDeleteCustomer(null)} panelClassName="max-w-md">
         {deleteCustomer ? (
@@ -5795,6 +5903,160 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
           </div>
         ) : null}
       </FormModal>
+    </>
+  );
+}
+
+type ColdCustomerRow = {
+  id: string;
+  name: string;
+  industry: string;
+  city: string | null;
+  phone: string;
+  assignedToId: string | null;
+  assignedTo: string;
+  parkedUntil: string | null;
+  parkedNote: string;
+  parkedAt: string | null;
+  parkedById: string | null;
+  parkedBy: string;
+};
+
+export function ColdCustomersPage({ role, workspace }: { role: Role; workspace: CrmWorkspace }) {
+  const { refreshCustomerCount, refreshColdCustomerCount } = useTaskCounterContext();
+  const [rows, setRows] = React.useState<ColdCustomerRow[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState("");
+  const [bringingBackId, setBringingBackId] = React.useState<string | null>(null);
+  const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const refreshColdCustomers = React.useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/customers/cold", { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok || !result.success || !Array.isArray(result.rows)) {
+        throw new Error(typeof result.message === "string" ? result.message : "Failed to load cold customers.");
+      }
+      setRows(result.rows as ColdCustomerRow[]);
+      void refreshColdCustomerCount();
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : "Failed to load cold customers.");
+    } finally {
+      setLoading(false);
+    }
+  }, [refreshColdCustomerCount]);
+
+  React.useEffect(() => {
+    void refreshColdCustomers();
+  }, [refreshColdCustomers]);
+
+  const handleBringBack = async (row: ColdCustomerRow) => {
+    setBringingBackId(row.id);
+    setFeedback(null);
+    try {
+      const response = await fetch(`/api/customers/${row.id}/unpark`, { method: "POST" });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(typeof result.message === "string" ? result.message : "Failed to bring back customer.");
+      }
+      setRows((current) => current.filter((item) => item.id !== row.id));
+      void refreshCustomerCount();
+      void refreshColdCustomerCount();
+      setFeedback({ type: "success", message: `${row.name} is back in the active Customers list.` });
+    } catch (bringBackError) {
+      setFeedback({ type: "error", message: bringBackError instanceof Error ? bringBackError.message : "Failed to bring back customer." });
+    } finally {
+      setBringingBackId(null);
+    }
+  };
+
+  const columns = React.useMemo<ColumnDef<ColdCustomerRow>[]>(() => [
+    {
+      accessorKey: "name",
+      header: "Customer",
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <Link href={`/customers/${row.original.id}`} className="font-bold text-slate-950 hover:text-blue-700">
+            {row.original.name}
+          </Link>
+          <p className="text-xs text-slate-500">{row.original.industry || "-"} • {row.original.city || "-"}</p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "phone",
+      header: "Phone",
+      cell: ({ row }) => row.original.phone || "-",
+    },
+    {
+      accessorKey: "assignedTo",
+      header: "Assigned",
+      cell: ({ row }) => <Badge variant="neutral">{row.original.assignedTo}</Badge>,
+    },
+    {
+      accessorKey: "parkedUntil",
+      header: "Follow-up again on",
+      cell: ({ row }) => (
+        <span className="font-black text-slate-950">
+          {row.original.parkedUntil ? new Date(row.original.parkedUntil).toLocaleDateString() : "-"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "parkedBy",
+      header: "Parked by",
+    },
+    {
+      accessorKey: "parkedNote",
+      header: "Note",
+      cell: ({ row }) => <span className="text-sm text-slate-600">{row.original.parkedNote || "-"}</span>,
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={bringingBackId === row.original.id}
+          onClick={(event) => {
+            event.stopPropagation();
+            void handleBringBack(row.original);
+          }}
+        >
+          {bringingBackId === row.original.id ? "Bringing back..." : "Bring Back"}
+        </Button>
+      ),
+    },
+  ], [bringingBackId]);
+
+  return (
+    <>
+      <PageHeader
+        title="Cold Customers"
+        description="Customers parked for a long-term follow-up. Nothing is deleted — bring any of them back to the active list whenever you're ready."
+      />
+      {feedback ? (
+        <div className={cn("rounded-xl border px-4 py-3 text-sm font-semibold", feedback.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700")}>
+          {feedback.message}
+        </div>
+      ) : null}
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>
+      ) : null}
+      {loading ? (
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm font-semibold text-slate-500">
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          Loading cold customers...
+        </div>
+      ) : rows.length ? (
+        <DataTable data={rows} columns={columns} searchPlaceholder="Search cold customers..." />
+      ) : (
+        <EmptyState title="No cold customers" description="Customers you park for a long-term follow-up will show up here." />
+      )}
     </>
   );
 }
