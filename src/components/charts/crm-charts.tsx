@@ -39,9 +39,62 @@ function ChartPlaceholder() {
   );
 }
 
-export function LeadStatusDonut({ total = 0, data = [] }: { total?: number; data?: ChartDatum[] }) {
+export function LeadStatusDonut({
+  total = 0,
+  data = [],
+  detailedLegend = false,
+}: {
+  total?: number;
+  data?: ChartDatum[];
+  detailedLegend?: boolean;
+}) {
   const ready = useChartReady();
   if (!ready || !data.length) return <ChartPlaceholder />;
+
+  if (detailedLegend) {
+    return (
+      <div className="grid h-full grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
+        <div className="relative h-[292px] rounded-[24px] bg-[radial-gradient(circle_at_center,#ffffff_0%,#f8fbff_62%,#eff6ff_100%)]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={data} innerRadius={78} outerRadius={112} paddingAngle={2} dataKey="value">
+                {data.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color ?? "#2563EB"} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => [value, "Leads"]} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+            <div className="rounded-full bg-white/95 px-8 py-7 shadow-[0_18px_36px_rgba(37,99,235,0.08)]">
+              <p className="text-4xl font-black tracking-[-0.03em] text-slate-950">{total}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-500">Total Leads</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {data.map((item) => {
+            const percent = total > 0 ? Math.round((item.value / total) * 100) : 0;
+            return (
+              <div key={item.name} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-3.5 py-3 shadow-sm">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: item.color ?? "#2563EB" }} />
+                    <span className="truncate font-semibold text-slate-700">{item.name}</span>
+                  </div>
+                  <span className="shrink-0 text-xs font-bold text-slate-500">{item.value} ({percent}%)</span>
+                </div>
+                <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white">
+                  <div className="h-full rounded-full" style={{ width: `${percent}%`, background: item.color ?? "#2563EB" }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid h-full grid-cols-1 items-center gap-3 md:grid-cols-[1fr_auto]">

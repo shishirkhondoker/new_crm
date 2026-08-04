@@ -1,12 +1,23 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
+const { syncDatabaseUrlEnv } = require("./database-url");
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+if (process.env.CRM_ENABLE_DEMO_SEED !== "true") {
+  console.log("Demo seeding is disabled by default. Use `npm run prisma:seed:demo` only in non-production environments.");
+  process.exit(0);
+}
+
+const connectionString = syncDatabaseUrlEnv();
+if (!connectionString) {
+  throw new Error("DATABASE_URL is required for seeding.");
+}
+
+const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
 const roles = {
-  admin: { name: "Admin User", email: "admin@mugnee.com", mobile: "01700000001", role: "ADMIN", designation: "System Admin" },
+  admin: { name: "Admin User", email: "admin@crm.com", mobile: "01700000001", role: "ADMIN", designation: "System Admin" },
   supervisor: { name: "Sadia Akter", email: "sadia@mugnee.com", mobile: "01700000002", role: "SUPERVISOR", designation: "Sales Supervisor" },
   marketers: [
     ["John Doe", "01700000003", "Senior Marketer"],
@@ -82,8 +93,8 @@ async function main() {
   await prisma.oTP.deleteMany();
   await prisma.user.deleteMany();
 
-  const admin = await prisma.user.create({ data: roles.admin });
-  const supervisor = await prisma.user.create({ data: roles.supervisor });
+  const admin = await prisma.user.create({ data: { ...roles.admin, firstLogin: false, passwordNotSet: false } });
+  const supervisor = await prisma.user.create({ data: { ...roles.supervisor, firstLogin: true, passwordNotSet: true } });
   const marketers = [];
 
   for (const [index, marketer] of roles.marketers.entries()) {
@@ -93,12 +104,21 @@ async function main() {
         mobile: marketer[1],
         email: `${marketer[0].toLowerCase().replace(/\s+/g, ".")}@mugnee.com`,
         role: "MARKETER",
+        firstLogin: true,
+        passwordNotSet: true,
         designation: marketer[2],
         supervisorId: supervisor.id,
         avatar: `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(marketer[0])}`,
         createdAt: day(-index),
       },
     }));
+  }
+
+  if (marketers.length) {
+    await prisma.userSupervisorAssignment.createMany({
+      data: marketers.map((marketer) => ({ supervisorId: supervisor.id, marketerId: marketer.id })),
+      skipDuplicates: true,
+    });
   }
 
   const products = [];

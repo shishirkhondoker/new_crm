@@ -1,0 +1,733 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  SUPERVISOR
+  MARKETER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum LeadStatus {
+  NEW_LEAD
+  CONTACTED
+  INTERESTED
+  FOLLOW_UP_REQUIRED
+  QUOTATION_SENT
+  NEGOTIATION
+  WON_SALE
+  LOST_SALE
+  ON_HOLD
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  PENDING
+  COMPLETED
+  OVERDUE
+}
+
+enum FollowUpStatus {
+  DUE
+  TODAY
+  UPCOMING
+  OVERDUE
+  COMPLETED
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  REVISED
+  APPROVED
+  REJECTED
+  CONVERTED_TO_SALE
+}
+
+enum ReportType {
+  CUSTOMER_COMMUNICATION
+  FOLLOW_UP
+  EMPLOYEE_PERFORMANCE
+  SALES
+  REWARD
+  LEAD_CONVERSION
+}
+
+enum PermissionModule {
+  DASHBOARD
+  LEADS
+  CUSTOMERS
+  TASKS
+  FOLLOW_UPS
+  COMMUNICATIONS
+  PRODUCTS
+  QUOTATIONS
+  REWARDS
+  REPORTS
+  TEAM
+  USERS
+  SETTINGS
+  IMPORT_EXPORT
+  NOTIFICATIONS
+}
+
+enum PermissionAction {
+  VIEW
+  CREATE
+  EDIT
+  DELETE
+  ASSIGN
+  REASSIGN
+  IMPORT
+  EXPORT
+  DOWNLOAD_REPORT
+}
+
+enum NotificationType {
+  FOLLOW_UP_REMINDER
+  TASK_ASSIGNED
+  FOLLOW_UP_OVERDUE
+  NEW_LEAD_ASSIGNED
+  TASK_COMPLETED
+  SYSTEM_ALERT
+  REWARD_EARNED
+  TARGET_ALERT
+}
+
+enum ImportExportType {
+  IMPORT
+  EXPORT
+}
+
+enum ImportExportFormat {
+  CSV
+  EXCEL
+  PDF
+  PRINT
+}
+
+enum ImportExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  name                String
+  email               String?              @unique
+  mobile              String               @unique
+  passwordHash        String?
+  firstLogin          Boolean              @default(true)
+  passwordNotSet      Boolean              @default(true)
+  lastLoginAt         DateTime?
+  authSetupToken      String?              @unique
+  authSetupPurpose    String?
+  authSetupExpiresAt  DateTime?
+  role                Role
+  status              UserStatus           @default(ACTIVE)
+  avatar              String?
+  designation         String?
+  supervisorId        String?
+  supervisor          User?                @relation("UserSupervisor", fields: [supervisorId], references: [id])
+  teamMembers         User[]               @relation("UserSupervisor")
+  supervisorAssignmentsAsSupervisor UserSupervisorAssignment[] @relation("SupervisorAssignmentsSupervisor")
+  supervisorAssignmentsAsMarketer   UserSupervisorAssignment[] @relation("SupervisorAssignmentsMarketer")
+  assignedCompanies   CustomerCompany[]    @relation("CompanyAssignedTo")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  otps                OTP[]
+  permissionOverrides UserPermission[]
+  leadStatusChanges   LeadStatusHistory[]
+  assignedLeads       Lead[]               @relation("AssignedLeads")
+  createdLeads        Lead[]               @relation("CreatedLeads")
+  tasksAssigned       Task[]               @relation("TaskAssignedTo")
+  tasksCreated        Task[]               @relation("TaskAssignedBy")
+  tasksCompleted      Task[]               @relation("TaskCompletedBy")
+  todayPlans          TodayPlan[]
+  followUps           FollowUp[]           @relation("FollowUpAssignedTo")
+  communications      CommunicationLog[]
+  productInterests    ProductInterest[]
+  quotations          Quotation[]
+  rewards             Reward[]
+  rewardHistories     RewardHistory[]
+  rewardExecutions    RewardExecutionLog[]
+  targets             Target[]
+  performanceMetrics  PerformanceMetric[]
+  notifications       Notification[]
+  activityLogs        ActivityLog[]
+  timelineItems       ActivityTimeline[]
+  attachments         Attachment[]
+  importExportLogs    ImportExportLog[]
+  reportLogs          ReportLog[]
+  reportExports       ReportExport[]
+}
+
+model UserSupervisorAssignment {
+  id           String   @id @default(cuid())
+  supervisorId String
+  marketerId   String
+  supervisor   User     @relation("SupervisorAssignmentsSupervisor", fields: [supervisorId], references: [id], onDelete: Cascade)
+  marketer     User     @relation("SupervisorAssignmentsMarketer", fields: [marketerId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@unique([supervisorId, marketerId])
+  @@index([supervisorId])
+  @@index([marketerId])
+}
+
+model OTP {
+  id        String   @id @default(cuid())
+  mobile    String
+  otp       String
+  purpose   String   @default("LOGIN")
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([mobile])
+}
+
+model CustomerCompany {
+  id             String             @id @default(cuid())
+  name           String
+  industry       String
+  contactPerson  String?
+  phone          String             @default("")
+  phone2         String?
+  city           String?
+  totalLeads     Int                @default(0)
+  lastCommunication DateTime?
+  address        String?
+  website        String?
+  notes          String?
+  rawData        Json              @default("{}")
+  assignedToId   String?
+  assignedTo     User?              @relation("CompanyAssignedTo", fields: [assignedToId], references: [id])
+  status         UserStatus         @default(ACTIVE)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  contacts       ContactPerson[]
+  phoneNumbers   PhoneNumber[]
+  leads          Lead[]
+  tasks          Task[]
+  todayPlans     TodayPlan[]
+  followUps      FollowUp[]
+  communications CommunicationLog[]
+  interests      ProductInterest[]
+  quotations     Quotation[]
+  attachments    Attachment[]
+  timelineItems  ActivityTimeline[]
+}
+
+model ContactPerson {
+  id          String          @id @default(cuid())
+  companyId   String
+  company     CustomerCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  designation String?
+  email       String?
+  mobile      String?
+  whatsapp    String?
+  isPrimary   Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+}
+
+model PhoneNumber {
+  id        String          @id @default(cuid())
+  companyId String
+  company   CustomerCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  label     String
+  number    String
+  whatsapp  Boolean         @default(false)
+  createdAt DateTime        @default(now())
+}
+
+model ProductService {
+  id            String            @id @default(cuid())
+  name          String
+  category      String
+  brand         String?
+  price         Decimal           @db.Decimal(12, 2)
+  imageUrl      String?
+  description   String?
+  specification String?
+  status        UserStatus        @default(ACTIVE)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  leads         Lead[]            @relation("LeadInterestedProduct")
+  tasks         Task[]
+  todayPlans    TodayPlan[]
+  interests     ProductInterest[]
+  quoteItems    QuotationItem[]
+  attachments   Attachment[]
+}
+
+model Lead {
+  id                  String              @id @default(cuid())
+  title               String
+  companyId           String?
+  company             CustomerCompany?    @relation(fields: [companyId], references: [id])
+  customerName        String
+  phone               String
+  email               String?
+  productInterestId   String?
+  interestedProduct   ProductService?     @relation("LeadInterestedProduct", fields: [productInterestId], references: [id])
+  status              LeadStatus          @default(NEW_LEAD)
+  score               Int                 @default(0)
+  priority            Priority            @default(MEDIUM)
+  purchaseProbability Int                 @default(0)
+  assignedToId        String?
+  assignedTo          User?               @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  createdById         String?
+  createdBy           User?               @relation("CreatedLeads", fields: [createdById], references: [id])
+  followUpDate        DateTime?
+  notes               String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  tasks               Task[]
+  todayPlans          TodayPlan[]
+  followUps           FollowUp[]
+  communications      CommunicationLog[]
+  quotations          Quotation[]
+  interests           ProductInterest[]
+  statusHistory       LeadStatusHistory[]
+  timelineItems       ActivityTimeline[]
+  attachments         Attachment[]
+}
+
+model Task {
+  id            String             @id @default(cuid())
+  title         String
+  description   String?
+  status        TaskStatus         @default(TODO)
+  priority      Priority           @default(MEDIUM)
+  taskDate      DateTime           @default(now())
+  isPrevious    Boolean            @default(false)
+  dueDate       DateTime?
+  taskTime      DateTime?
+  reminder      String?
+  companyName   String?
+  leadName      String?
+  notes         String?
+  assignedById  String
+  assignedBy    User               @relation("TaskAssignedBy", fields: [assignedById], references: [id])
+  assignedToId  String
+  assignedTo    User               @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  completedById String?
+  completedBy   User?              @relation("TaskCompletedBy", fields: [completedById], references: [id])
+  leadId        String?
+  lead          Lead?              @relation(fields: [leadId], references: [id])
+  companyId     String?
+  company       CustomerCompany?   @relation(fields: [companyId], references: [id])
+  productId     String?
+  product       ProductService?    @relation(fields: [productId], references: [id])
+  completedAt   DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  timelineItems ActivityTimeline[]
+  followUps     FollowUp[]
+  communications CommunicationLog[]
+
+  @@index([status, taskDate])
+  @@index([assignedToId, taskDate])
+}
+
+model TodayPlan {
+  id           String           @id @default(cuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id])
+  title        String
+  plannedAt    DateTime
+  priority     Priority         @default(MEDIUM)
+  note         String?
+  companyId    String?
+  company      CustomerCompany? @relation(fields: [companyId], references: [id])
+  leadId       String?
+  lead         Lead?            @relation(fields: [leadId], references: [id])
+  productId    String?
+  product      ProductService?  @relation(fields: [productId], references: [id])
+  status       TaskStatus       @default(TODO)
+  carryForward Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model FollowUp {
+  id                 String             @id @default(cuid())
+  leadId             String?
+  lead               Lead?              @relation(fields: [leadId], references: [id])
+  companyId          String?
+  company            CustomerCompany?   @relation(fields: [companyId], references: [id])
+  assignedToId       String?
+  assignedTo         User?              @relation("FollowUpAssignedTo", fields: [assignedToId], references: [id])
+  method             String
+  note               String?
+  nextDiscussionPlan String?
+  status             FollowUpStatus     @default(UPCOMING)
+  priority           Priority           @default(MEDIUM)
+  followUpDate       DateTime
+  rating             Int?
+  taskId             String?
+  task               Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  completedAt        DateTime?
+  reminderSentAt     DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  notifications      Notification[]
+  timelineItems      ActivityTimeline[]
+}
+
+model CommunicationLog {
+  id               String             @id @default(cuid())
+  companyId        String?
+  company          CustomerCompany?   @relation(fields: [companyId], references: [id])
+  leadId           String?
+  lead             Lead?              @relation(fields: [leadId], references: [id])
+  taskId           String?
+  task             Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  userId           String?
+  user             User?              @relation(fields: [userId], references: [id])
+  method           String
+  note             String
+  discussionTopic  String?
+  productDiscussed String?
+  communicationAt  DateTime           @default(now())
+  outcome          String?
+  rating           Int?
+  nextFollowUpDate DateTime?
+  followUpNote     String?
+  createdAt        DateTime           @default(now())
+  attachments      Attachment[]
+  timelineItems    ActivityTimeline[]
+}
+
+model ProductInterest {
+  id        String           @id @default(cuid())
+  productId String
+  product   ProductService   @relation(fields: [productId], references: [id])
+  companyId String?
+  company   CustomerCompany? @relation(fields: [companyId], references: [id])
+  leadId    String?
+  lead      Lead?            @relation(fields: [leadId], references: [id])
+  userId    String?
+  user      User?            @relation(fields: [userId], references: [id])
+  score     Int              @default(0)
+  createdAt DateTime         @default(now())
+}
+
+model Quotation {
+  id          String           @id @default(cuid())
+  quoteNumber String           @unique
+  companyId   String?
+  company     CustomerCompany? @relation(fields: [companyId], references: [id])
+  leadId      String?
+  lead        Lead?            @relation(fields: [leadId], references: [id])
+  createdById String?
+  createdBy   User?            @relation(fields: [createdById], references: [id])
+  status      QuotationStatus  @default(DRAFT)
+  subtotal    Decimal          @db.Decimal(12, 2)
+  discount    Decimal          @default(0) @db.Decimal(12, 2)
+  totalAmount Decimal          @db.Decimal(12, 2)
+  validUntil  DateTime?
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  items       QuotationItem[]
+}
+
+model QuotationItem {
+  id          String          @id @default(cuid())
+  quotationId String
+  quotation   Quotation       @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     ProductService? @relation(fields: [productId], references: [id])
+  description String
+  quantity    Int
+  unitPrice   Decimal         @db.Decimal(12, 2)
+  discount    Decimal         @default(0) @db.Decimal(12, 2)
+  total       Decimal         @db.Decimal(12, 2)
+}
+
+model Reward {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  ruleId    String?
+  rule      RewardRule? @relation(fields: [ruleId], references: [id])
+  points    Int
+  reason    String
+  source    String
+  eventKey  String?
+  createdAt DateTime    @default(now())
+
+  @@unique([ruleId, eventKey])
+}
+
+model RewardRule {
+  id         String               @id @default(cuid())
+  name       String
+  trigger    String
+  points     Int
+  active     Boolean              @default(true)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  rewards    Reward[]
+  histories  RewardHistory[]
+  executions RewardExecutionLog[]
+}
+
+model Target {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  period      String
+  leadsTarget Int
+  salesTarget Decimal  @db.Decimal(12, 2)
+  achieved    Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  module          PermissionModule
+  action          PermissionAction
+  label           String
+  description     String?
+  createdAt       DateTime         @default(now())
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+
+  @@unique([module, action])
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  role         Role
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  enabled      Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([role, permissionId])
+}
+
+model UserPermission {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  enabled      Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([userId, permissionId])
+}
+
+model LeadStatusHistory {
+  id          String      @id @default(cuid())
+  leadId      String
+  lead        Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fromStatus  LeadStatus?
+  toStatus    LeadStatus
+  changedById String?
+  changedBy   User?       @relation(fields: [changedById], references: [id])
+  note        String?
+  createdAt   DateTime    @default(now())
+
+  @@index([leadId])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  recipientId String
+  recipient   User             @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  title       String
+  message     String
+  type        NotificationType
+  entity      String?
+  entityId    String?
+  followUpId  String?
+  followUp    FollowUp?        @relation(fields: [followUpId], references: [id], onDelete: SetNull)
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  @@index([recipientId, readAt])
+}
+
+model RewardHistory {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ruleId    String?
+  rule      RewardRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  points    Int
+  reason    String
+  source    String
+  entity    String?
+  entityId  String?
+  createdAt DateTime    @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model RewardExecutionLog {
+  id        String     @id @default(cuid())
+  ruleId    String
+  rule      RewardRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventKey  String
+  entity    String
+  entityId  String
+  points    Int
+  status    String     @default("COMPLETED")
+  createdAt DateTime   @default(now())
+
+  @@unique([ruleId, eventKey])
+}
+
+model PerformanceMetric {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  period             String
+  leadsAdded         Int      @default(0)
+  followUpsCompleted Int      @default(0)
+  meetingsScheduled  Int      @default(0)
+  salesCompleted     Int      @default(0)
+  activityCount      Int      @default(0)
+  conversionRate     Decimal  @default(0) @db.Decimal(5, 2)
+  salesAmount        Decimal  @default(0) @db.Decimal(12, 2)
+  rewardPoints       Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([userId, period])
+}
+
+model ReportLog {
+  id            String             @id @default(cuid())
+  reportType    ReportType
+  format        ImportExportFormat
+  requestedById String?
+  requestedBy   User?              @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+  filters       Json?
+  fileUrl       String?
+  status        ImportExportStatus @default(PENDING)
+  createdAt     DateTime           @default(now())
+  completedAt   DateTime?
+}
+
+model ImportExportLog {
+  id            String             @id @default(cuid())
+  type          ImportExportType
+  module        PermissionModule
+  format        ImportExportFormat
+  requestedById String?
+  requestedBy   User?              @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+  fileName      String?
+  fileUrl       String?
+  status        ImportExportStatus @default(PENDING)
+  processedRows Int                @default(0)
+  failedRows    Int                @default(0)
+  errorMessage  String?
+  createdAt     DateTime           @default(now())
+  completedAt   DateTime?
+}
+
+model Attachment {
+  id                 String            @id @default(cuid())
+  fileName           String
+  fileUrl            String
+  fileType           String?
+  size               Int?
+  uploadedById       String?
+  uploadedBy         User?             @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  companyId          String?
+  company            CustomerCompany?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  leadId             String?
+  lead               Lead?             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  productId          String?
+  product            ProductService?   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  communicationLogId String?
+  communicationLog   CommunicationLog? @relation(fields: [communicationLogId], references: [id], onDelete: Cascade)
+  createdAt          DateTime          @default(now())
+}
+
+model ActivityTimeline {
+  id                 String            @id @default(cuid())
+  title              String
+  description        String?
+  entity             String
+  entityId           String?
+  userId             String?
+  user               User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  companyId          String?
+  company            CustomerCompany?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  leadId             String?
+  lead               Lead?             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  taskId             String?
+  task               Task?             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  followUpId         String?
+  followUp           FollowUp?         @relation(fields: [followUpId], references: [id], onDelete: Cascade)
+  communicationLogId String?
+  communicationLog   CommunicationLog? @relation(fields: [communicationLogId], references: [id], onDelete: Cascade)
+  metadata           Json?
+  createdAt          DateTime          @default(now())
+
+  @@index([entity, entityId])
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  group     String   @default("general")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ReportExport {
+  id            String     @id @default(cuid())
+  reportType    ReportType
+  format        String
+  requestedById String?
+  requestedBy   User?      @relation(fields: [requestedById], references: [id])
+  fileUrl       String?
+  createdAt     DateTime   @default(now())
+}

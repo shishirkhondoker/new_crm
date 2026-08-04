@@ -1,0 +1,3 @@
+ALTER TABLE "CustomerCompany"
+  ADD COLUMN IF NOT EXISTS "phone2" TEXT,
+  ADD COLUMN IF NOT EXISTS "city" TEXT;

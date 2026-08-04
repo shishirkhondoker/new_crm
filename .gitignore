@@ -1,8 +1,8 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
+# ==============================
+# Dependencies
+# ==============================
+node_modules/
+.pnp/
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -10,33 +10,127 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
 
-# next.js
-/.next/
-/out/
+# ==============================
+# Next.js generated files
+# ==============================
+.next/
+out/
+build/
+dist/
+.turbo/
 
-# production
-/build
 
-# misc
-.DS_Store
-*.pem
+# ==============================
+# Testing
+# ==============================
+coverage/
+.nyc_output/
 
-# debug
+
+# ==============================
+# Environment variables
+# Never upload real environment files
+# ==============================
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env*.local
+.env*
+
+# Allow example environment files
+!.env.example
+!.env*.example
+
+
+# ==============================
+# Logs and debug files
+# ==============================
+*.log
+logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 .pnpm-debug.log*
 .next-dev*.log
+dev-*.log
 
-# env files (can opt-in for committing if needed)
-.env*
 
-# vercel
-.vercel
-
-# typescript
+# ==============================
+# TypeScript generated files
+# ==============================
 *.tsbuildinfo
 next-env.d.ts
+
+
+# ==============================
+# Prisma local database files
+# ==============================
+prisma/*.db
+prisma/*.db-journal
+prisma/*.sqlite
+prisma/*.sqlite3
+
+
+# ==============================
+# Vercel
+# ==============================
+.vercel/
+
+
+# ==============================
+# Operating system files
+# ==============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+# ==============================
+# Editor settings
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+
+# ==============================
+# Certificates and secrets
+# ==============================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+
+# ==============================
+# Temporary and backup files
+# ==============================
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+.cache/
+
+
+# ==============================
+# Duplicate Windows copy files
+# Examples: src - Copy, file - Copy.ts
+# ==============================
+* - Copy*
+*- Copy*
+
+
+# ==============================
+# Local AI coding tool folders
+# Markdown instruction files are not ignored
+# ==============================
+.agents/
+.claude/
+.codex/

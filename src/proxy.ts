@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const protectedPrefixes = [
+  "/dashboard",
   "/admin",
   "/supervisor",
   "/marketer",
@@ -20,7 +21,11 @@ export function proxy(request: NextRequest) {
 
   const role = request.cookies.get("crm_role")?.value;
   if (!role) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const url = new URL("/login", request.url);
+    if (pathname.startsWith("/admin")) url.searchParams.set("as", "admin");
+    if (pathname.startsWith("/supervisor")) url.searchParams.set("as", "supervisor");
+    if (pathname.startsWith("/marketer")) url.searchParams.set("as", "marketer");
+    return NextResponse.redirect(url);
   }
 
   if (role === "ADMIN") return NextResponse.next();

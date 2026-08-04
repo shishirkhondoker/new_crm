@@ -6,682 +6,981 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  ADMIN
-  SUPERVISOR
-  MARKETER
+model access_passkeys {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  signup_request_id String          @db.Uuid
+  email             String
+  token_hash        String          @unique
+  expires_at        DateTime        @db.Timestamptz(6)
+  used_at           DateTime?       @db.Timestamptz(6)
+  issued_by         String?         @db.Uuid
+  created_at        DateTime        @default(now()) @db.Timestamptz(6)
+  profiles          profiles?       @relation(fields: [issued_by], references: [id])
+  signup_requests   signup_requests @relation(fields: [signup_request_id], references: [id], onDelete: Cascade)
+
+  @@index([email, used_at, expires_at])
+  @@index([issued_by])
+  @@index([signup_request_id, created_at(sort: Desc)])
 }
 
-enum UserStatus {
-  ACTIVE
-  INACTIVE
+model accounts {
+  id                       String    @id
+  userId                   String    @db.Uuid
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  scope                    String?
+  id_token                 String?
+  access_token_expires_at  DateTime? @db.Timestamptz(6)
+  created_at               DateTime  @default(now()) @db.Timestamptz(6)
+  password                 String?
+  refresh_token_expires_at DateTime? @db.Timestamptz(6)
+  updated_at               DateTime  @db.Timestamptz(6)
+  profiles                 profiles  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
 }
 
-enum LeadStatus {
-  NEW_LEAD
-  CONTACTED
-  INTERESTED
-  FOLLOW_UP_REQUIRED
-  QUOTATION_SENT
-  NEGOTIATION
-  WON_SALE
-  LOST_SALE
-  ON_HOLD
+model activity_logs {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String        @db.Uuid
+  actor_user_id   String?       @db.Uuid
+  action          String
+  entity_type     String?
+  entity_id       String?       @db.Uuid
+  metadata        Json          @default("{}")
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  profiles        profiles?     @relation(fields: [actor_user_id], references: [id])
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
 }
 
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
+model admin_audit_logs {
+  id                                                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor_user_id                                      String?        @db.Uuid
+  target_user_id                                     String?        @db.Uuid
+  organization_id                                    String?        @db.Uuid
+  action                                             String
+  entity_type                                        String
+  entity_id                                          String?
+  metadata                                           Json           @default("{}")
+  created_at                                         DateTime       @default(now()) @db.Timestamptz(6)
+  profiles_admin_audit_logs_actor_user_idToprofiles  profiles?      @relation("admin_audit_logs_actor_user_idToprofiles", fields: [actor_user_id], references: [id])
+  organizations                                      organizations? @relation(fields: [organization_id], references: [id])
+  profiles_admin_audit_logs_target_user_idToprofiles profiles?      @relation("admin_audit_logs_target_user_idToprofiles", fields: [target_user_id], references: [id])
+
+  @@index([action, created_at(sort: Desc)])
+  @@index([actor_user_id, created_at(sort: Desc)])
+  @@index([organization_id, created_at(sort: Desc)])
+  @@index([target_user_id, created_at(sort: Desc)])
 }
 
-enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  PENDING
-  COMPLETED
-  OVERDUE
+model challenge_templates {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id         String                    @db.Uuid
+  name                    String
+  description             String?
+  cadence                 String
+  target_metric           String
+  target_count            Int
+  bonus_points            Int                       @default(0)
+  is_active               Boolean                   @default(true)
+  starts_at               DateTime?                 @db.Timestamptz(6)
+  ends_at                 DateTime?                 @db.Timestamptz(6)
+  config                  Json                      @default("{}")
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  organizations           organizations             @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  scoring_activity_logs   scoring_activity_logs[]
+  user_challenge_progress user_challenge_progress[]
+  wallet_transactions     wallet_transactions[]
 }
 
-enum FollowUpStatus {
-  DUE
-  TODAY
-  UPCOMING
-  OVERDUE
-  COMPLETED
+model companies {
+  id                                               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                                  String                  @db.Uuid
+  status                                           String                  @default("active")
+  created_at                                       DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                                       DateTime                @default(now()) @db.Timestamptz(6)
+  name                                             String
+  industry_id                                      String?                 @db.Uuid
+  category_id                                      String?                 @db.Uuid
+  lead_source                                      String?
+  priority                                         String                  @default("medium")
+  assigned_user_id                                 String?                 @db.Uuid
+  pipeline_stage_id                                String?                 @db.Uuid
+  phone                                            String?
+  whatsapp                                         String?
+  email                                            String?
+  website                                          String?
+  address                                          String?
+  city                                             String?
+  country                                          String?
+  success_rating                                   Int?
+  lead_temperature                                 String                  @default("warm")
+  estimated_value                                  Decimal?                @db.Decimal(14, 2)
+  expected_closing_date                            DateTime?               @db.Date
+  notes                                            String?
+  created_by                                       String?                 @db.Uuid
+  updated_by                                       String?                 @db.Uuid
+  lead_score                                       Int                     @default(0)
+  referred_by_user_id                              String?                 @db.Uuid
+  phone_numbers                                    Json                    @default("[]")
+  email_addresses                                  Json                    @default("[]")
+  profiles_companies_assigned_user_idToprofiles    profiles?               @relation("companies_assigned_user_idToprofiles", fields: [assigned_user_id], references: [id])
+  company_categories                               company_categories?     @relation(fields: [category_id], references: [id])
+  profiles_companies_created_byToprofiles          profiles?               @relation("companies_created_byToprofiles", fields: [created_by], references: [id])
+  industries                                       industries?             @relation(fields: [industry_id], references: [id])
+  organizations                                    organizations           @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  pipeline_stages                                  pipeline_stages?        @relation(fields: [pipeline_stage_id], references: [id])
+  profiles_companies_referred_by_user_idToprofiles profiles?               @relation("companies_referred_by_user_idToprofiles", fields: [referred_by_user_id], references: [id])
+  profiles_companies_updated_byToprofiles          profiles?               @relation("companies_updated_byToprofiles", fields: [updated_by], references: [id])
+  contact_persons                                  contact_persons[]
+  documents                                        documents[]
+  followups                                        followups[]
+  help_requests                                    help_requests[]
+  interactions                                     interactions[]
+  scoring_activity_logs                            scoring_activity_logs[]
+  wallet_transactions                              wallet_transactions[]
+
+  @@index([assigned_user_id])
+  @@index([organization_id])
+  @@index([pipeline_stage_id])
 }
 
-enum QuotationStatus {
-  DRAFT
-  SENT
-  REVISED
-  APPROVED
-  REJECTED
-  CONVERTED_TO_SALE
+model company_categories {
+  id                                               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                                  String        @db.Uuid
+  name                                             String
+  code                                             String
+  description                                      String?
+  priority_level                                   Int           @default(3)
+  status                                           String        @default("active")
+  created_by                                       String?       @db.Uuid
+  updated_by                                       String?       @db.Uuid
+  created_at                                       DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at                                       DateTime      @default(now()) @db.Timestamptz(6)
+  companies                                        companies[]
+  profiles_company_categories_created_byToprofiles profiles?     @relation("company_categories_created_byToprofiles", fields: [created_by], references: [id])
+  organizations                                    organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles_company_categories_updated_byToprofiles profiles?     @relation("company_categories_updated_byToprofiles", fields: [updated_by], references: [id])
+
+  @@unique([organization_id, code])
+  @@index([organization_id])
 }
 
-enum ReportType {
-  CUSTOMER_COMMUNICATION
-  FOLLOW_UP
-  EMPLOYEE_PERFORMANCE
-  SALES
-  REWARD
-  LEAD_CONVERSION
+model contact_persons {
+  id                                            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                               String          @db.Uuid
+  company_id                                    String          @db.Uuid
+  name                                          String
+  designation                                   String?
+  department                                    String?
+  mobile                                        String?
+  whatsapp                                      String?
+  email                                         String?
+  linkedin                                      String?
+  decision_role                                 String?
+  relationship_level                            String?
+  preferred_contact_method                      String?
+  remarks                                       String?
+  is_primary                                    Boolean         @default(false)
+  status                                        String          @default("active")
+  created_by                                    String?         @db.Uuid
+  updated_by                                    String?         @db.Uuid
+  created_at                                    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at                                    DateTime        @default(now()) @db.Timestamptz(6)
+  mobile_numbers                                Json            @default("[]")
+  email_addresses                               Json            @default("[]")
+  companies                                     companies       @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  profiles_contact_persons_created_byToprofiles profiles?       @relation("contact_persons_created_byToprofiles", fields: [created_by], references: [id])
+  organizations                                 organizations   @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles_contact_persons_updated_byToprofiles profiles?       @relation("contact_persons_updated_byToprofiles", fields: [updated_by], references: [id])
+  documents                                     documents[]
+  followups                                     followups[]
+  help_requests                                 help_requests[]
+  interactions                                  interactions[]
+
+  @@index([company_id])
+  @@index([organization_id])
 }
 
-enum PermissionModule {
-  DASHBOARD
-  LEADS
-  CUSTOMERS
-  TASKS
-  FOLLOW_UPS
-  COMMUNICATIONS
-  PRODUCTS
-  QUOTATIONS
-  REWARDS
-  REPORTS
-  TEAM
-  USERS
-  SETTINGS
-  IMPORT_EXPORT
-  NOTIFICATIONS
+model document_download_logs {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String        @db.Uuid
+  document_id     String        @db.Uuid
+  downloaded_by   String        @db.Uuid
+  created_at      DateTime?     @default(now()) @db.Timestamptz(6)
+  documents       documents     @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  profiles        profiles      @relation(fields: [downloaded_by], references: [id], onDelete: Cascade)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
 }
 
-enum PermissionAction {
-  VIEW
-  CREATE
-  EDIT
-  DELETE
-  ASSIGN
-  REASSIGN
-  IMPORT
-  EXPORT
-  DOWNLOAD_REPORT
+model documents {
+  id                                       String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                          String                   @db.Uuid
+  file_size_mb                             Decimal?                 @db.Decimal
+  created_at                               DateTime?                @default(now()) @db.Timestamptz(6)
+  updated_at                               DateTime?                @default(now()) @db.Timestamptz(6)
+  company_id                               String                   @db.Uuid
+  contact_person_id                        String?                  @db.Uuid
+  interaction_id                           String?                  @db.Uuid
+  followup_id                              String?                  @db.Uuid
+  document_type                            String                   @default("Other")
+  title                                    String
+  description                              String?
+  file_name                                String
+  file_path                                String
+  file_url                                 String?
+  mime_type                                String?
+  file_extension                           String?
+  status                                   String?                  @default("submitted")
+  submitted_to                             String?
+  submitted_at                             DateTime?                @db.Timestamptz(6)
+  expiry_date                              DateTime?                @db.Date
+  remarks                                  String?
+  created_by                               String?                  @db.Uuid
+  updated_by                               String?                  @db.Uuid
+  uploaded_by                              String?                  @db.Uuid
+  document_download_logs                   document_download_logs[]
+  companies                                companies                @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  contact_persons                          contact_persons?         @relation(fields: [contact_person_id], references: [id])
+  profiles_documents_created_byToprofiles  profiles?                @relation("documents_created_byToprofiles", fields: [created_by], references: [id])
+  followups                                followups?               @relation(fields: [followup_id], references: [id])
+  interactions                             interactions?            @relation(fields: [interaction_id], references: [id])
+  organizations                            organizations            @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles_documents_updated_byToprofiles  profiles?                @relation("documents_updated_byToprofiles", fields: [updated_by], references: [id])
+  profiles_documents_uploaded_byToprofiles profiles?                @relation("documents_uploaded_byToprofiles", fields: [uploaded_by], references: [id])
+  help_requests                            help_requests[]
+
+  @@index([organization_id, company_id, created_at(sort: Desc)])
+  @@index([organization_id])
+  @@index([organization_id, status, created_at(sort: Desc)])
 }
 
-enum NotificationType {
-  FOLLOW_UP_REMINDER
-  TASK_ASSIGNED
-  FOLLOW_UP_OVERDUE
-  NEW_LEAD_ASSIGNED
-  TASK_COMPLETED
-  SYSTEM_ALERT
-  REWARD_EARNED
-  TARGET_ALERT
+model email_reminder_logs {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String        @db.Uuid
+  followup_id     String        @db.Uuid
+  user_id         String        @db.Uuid
+  email           String
+  status          String        @default("pending")
+  provider        String?
+  error_message   String?
+  sent_at         DateTime?     @db.Timestamptz(6)
+  created_at      DateTime?     @default(now()) @db.Timestamptz(6)
+  followups       followups     @relation(fields: [followup_id], references: [id], onDelete: Cascade)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles        profiles      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
-enum ImportExportType {
-  IMPORT
-  EXPORT
+model followups {
+  id                                            String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                               String                  @db.Uuid
+  company_id                                    String                  @db.Uuid
+  contact_person_id                             String?                 @db.Uuid
+  interaction_id                                String?                 @db.Uuid
+  assigned_user_id                              String?                 @db.Uuid
+  followup_type                                 String                  @default("Phone Call")
+  title                                         String
+  description                                   String?
+  scheduled_at                                  DateTime                @db.Timestamptz(6)
+  reminder_before_minutes                       Int?                    @default(60)
+  status                                        String                  @default("pending")
+  priority                                      String                  @default("medium")
+  completed_at                                  DateTime?               @db.Timestamptz(6)
+  completed_by                                  String?                 @db.Uuid
+  rescheduled_from                              DateTime?               @db.Timestamptz(6)
+  cancelled_reason                              String?
+  created_by                                    String                  @db.Uuid
+  updated_by                                    String                  @db.Uuid
+  created_at                                    DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at                                    DateTime?               @default(now()) @db.Timestamptz(6)
+  documents                                     documents[]
+  email_reminder_logs                           email_reminder_logs[]
+  profiles_followups_assigned_user_idToprofiles profiles?               @relation("followups_assigned_user_idToprofiles", fields: [assigned_user_id], references: [id])
+  companies                                     companies               @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  profiles_followups_completed_byToprofiles     profiles?               @relation("followups_completed_byToprofiles", fields: [completed_by], references: [id])
+  contact_persons                               contact_persons?        @relation(fields: [contact_person_id], references: [id])
+  profiles_followups_created_byToprofiles       profiles                @relation("followups_created_byToprofiles", fields: [created_by], references: [id], onDelete: Cascade)
+  interactions                                  interactions?           @relation(fields: [interaction_id], references: [id])
+  organizations                                 organizations           @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles_followups_updated_byToprofiles       profiles                @relation("followups_updated_byToprofiles", fields: [updated_by], references: [id], onDelete: Cascade)
+  help_requests                                 help_requests[]
+  scoring_activity_logs                         scoring_activity_logs[]
+  wallet_transactions                           wallet_transactions[]
 }
 
-enum ImportExportFormat {
-  CSV
-  EXCEL
-  PDF
-  PRINT
+model help_request_comments {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String        @db.Uuid
+  help_request_id String        @db.Uuid
+  user_id         String        @db.Uuid
+  comment         String
+  is_internal     Boolean?      @default(true)
+  created_at      DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?     @default(now()) @db.Timestamptz(6)
+  help_requests   help_requests @relation(fields: [help_request_id], references: [id], onDelete: Cascade)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles        profiles      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
-enum ImportExportStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
+model help_requests {
+  id                                            String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                               String                  @db.Uuid
+  company_id                                    String                  @db.Uuid
+  contact_person_id                             String?                 @db.Uuid
+  interaction_id                                String?                 @db.Uuid
+  followup_id                                   String?                 @db.Uuid
+  document_id                                   String?                 @db.Uuid
+  requested_by                                  String                  @db.Uuid
+  assigned_to                                   String?                 @db.Uuid
+  help_type                                     String                  @default("General Support")
+  title                                         String
+  description                                   String?
+  priority                                      String?                 @default("medium")
+  status                                        String?                 @default("open")
+  resolution_note                               String?
+  resolved_at                                   DateTime?               @db.Timestamptz(6)
+  resolved_by                                   String?                 @db.Uuid
+  created_by                                    String                  @db.Uuid
+  updated_by                                    String                  @db.Uuid
+  created_at                                    DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at                                    DateTime?               @default(now()) @db.Timestamptz(6)
+  help_request_comments                         help_request_comments[]
+  profiles_help_requests_assigned_toToprofiles  profiles?               @relation("help_requests_assigned_toToprofiles", fields: [assigned_to], references: [id])
+  companies                                     companies               @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  contact_persons                               contact_persons?        @relation(fields: [contact_person_id], references: [id])
+  profiles_help_requests_created_byToprofiles   profiles                @relation("help_requests_created_byToprofiles", fields: [created_by], references: [id], onDelete: Cascade)
+  documents                                     documents?              @relation(fields: [document_id], references: [id])
+  followups                                     followups?              @relation(fields: [followup_id], references: [id])
+  interactions                                  interactions?           @relation(fields: [interaction_id], references: [id])
+  organizations                                 organizations           @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles_help_requests_requested_byToprofiles profiles                @relation("help_requests_requested_byToprofiles", fields: [requested_by], references: [id], onDelete: Cascade)
+  profiles_help_requests_resolved_byToprofiles  profiles?               @relation("help_requests_resolved_byToprofiles", fields: [resolved_by], references: [id])
+  profiles_help_requests_updated_byToprofiles   profiles                @relation("help_requests_updated_byToprofiles", fields: [updated_by], references: [id], onDelete: Cascade)
 }
 
-model User {
-  id                  String               @id @default(cuid())
-  name                String
-  email               String?              @unique
-  mobile              String               @unique
-  role                Role
-  status              UserStatus           @default(ACTIVE)
-  avatar              String?
-  designation         String?
-  supervisorId        String?
-  supervisor          User?                @relation("UserSupervisor", fields: [supervisorId], references: [id])
-  teamMembers         User[]               @relation("UserSupervisor")
-  assignedCompanies   CustomerCompany[]    @relation("CompanyAssignedTo")
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  otps                OTP[]
-  permissionOverrides UserPermission[]
-  leadStatusChanges   LeadStatusHistory[]
-  assignedLeads       Lead[]               @relation("AssignedLeads")
-  createdLeads        Lead[]               @relation("CreatedLeads")
-  tasksAssigned       Task[]               @relation("TaskAssignedTo")
-  tasksCreated        Task[]               @relation("TaskAssignedBy")
-  todayPlans          TodayPlan[]
-  followUps           FollowUp[]           @relation("FollowUpAssignedTo")
-  communications      CommunicationLog[]
-  productInterests    ProductInterest[]
-  quotations          Quotation[]
-  rewards             Reward[]
-  rewardHistories     RewardHistory[]
-  rewardExecutions    RewardExecutionLog[]
-  targets             Target[]
-  performanceMetrics  PerformanceMetric[]
-  notifications       Notification[]
-  activityLogs        ActivityLog[]
-  timelineItems       ActivityTimeline[]
-  attachments         Attachment[]
-  importExportLogs    ImportExportLog[]
-  reportLogs          ReportLog[]
-  reportExports       ReportExport[]
+model industries {
+  id                                       String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                          String        @db.Uuid
+  name                                     String
+  description                              String?
+  status                                   String        @default("active")
+  created_by                               String?       @db.Uuid
+  updated_by                               String?       @db.Uuid
+  created_at                               DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at                               DateTime      @default(now()) @db.Timestamptz(6)
+  companies                                companies[]
+  profiles_industries_created_byToprofiles profiles?     @relation("industries_created_byToprofiles", fields: [created_by], references: [id])
+  organizations                            organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles_industries_updated_byToprofiles profiles?     @relation("industries_updated_byToprofiles", fields: [updated_by], references: [id])
+
+  @@unique([organization_id, name])
+  @@index([organization_id])
 }
 
-model OTP {
-  id        String   @id @default(cuid())
-  mobile    String
-  otp       String
-  expiresAt DateTime
-  used      Boolean  @default(false)
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
+model interactions {
+  id                                               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                                  String           @db.Uuid
+  company_id                                       String           @db.Uuid
+  contact_person_id                                String?          @db.Uuid
+  assigned_user_id                                 String?          @db.Uuid
+  interaction_type                                 String           @default("Phone Call")
+  meeting_datetime                                 DateTime         @default(now()) @db.Timestamptz(6)
+  location                                         String?
+  online_meeting_link                              String?
+  discussion_details                               String
+  client_requirement                               String?
+  pain_point                                       String?
+  proposed_solution                                String?
+  budget_discussion                                String?
+  competitor_mentioned                             String?
+  decision_timeline                                String?
+  success_rating                                   Int?
+  lead_temperature                                 String?
+  next_action                                      String?
+  next_followup_at                                 DateTime?        @db.Timestamptz(6)
+  need_help                                        Boolean          @default(false)
+  internal_note                                    String?
+  status                                           String           @default("active")
+  created_by                                       String?          @db.Uuid
+  updated_by                                       String?          @db.Uuid
+  created_at                                       DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at                                       DateTime         @default(now()) @db.Timestamptz(6)
+  completed_at                                     DateTime?        @db.Timestamptz(6)
+  completed_by                                     String?          @db.Uuid
+  documents                                        documents[]
+  followups                                        followups[]
+  help_requests                                    help_requests[]
+  profiles_interactions_assigned_user_idToprofiles profiles?        @relation("interactions_assigned_user_idToprofiles", fields: [assigned_user_id], references: [id])
+  companies                                        companies        @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  profiles_interactions_completed_byToprofiles     profiles?        @relation("interactions_completed_byToprofiles", fields: [completed_by], references: [id])
+  contact_persons                                  contact_persons? @relation(fields: [contact_person_id], references: [id])
+  profiles_interactions_created_byToprofiles       profiles?        @relation("interactions_created_byToprofiles", fields: [created_by], references: [id])
+  organizations                                    organizations    @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles_interactions_updated_byToprofiles       profiles?        @relation("interactions_updated_byToprofiles", fields: [updated_by], references: [id])
 
-  @@index([mobile])
+  @@index([company_id])
+  @@index([completed_at])
+  @@index([contact_person_id])
+  @@index([meeting_datetime])
+  @@index([organization_id])
 }
 
-model CustomerCompany {
-  id             String             @id @default(cuid())
-  name           String
-  industry       String
-  address        String?
-  website        String?
-  notes          String?
-  assignedToId   String?
-  assignedTo     User?              @relation("CompanyAssignedTo", fields: [assignedToId], references: [id])
-  status         UserStatus         @default(ACTIVE)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  contacts       ContactPerson[]
-  phoneNumbers   PhoneNumber[]
-  leads          Lead[]
-  tasks          Task[]
-  todayPlans     TodayPlan[]
-  followUps      FollowUp[]
-  communications CommunicationLog[]
-  interests      ProductInterest[]
-  quotations     Quotation[]
-  attachments    Attachment[]
-  timelineItems  ActivityTimeline[]
-}
-
-model ContactPerson {
-  id          String          @id @default(cuid())
-  companyId   String
-  company     CustomerCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name        String
-  designation String?
-  email       String?
-  mobile      String?
-  whatsapp    String?
-  isPrimary   Boolean         @default(false)
-  createdAt   DateTime        @default(now())
-}
-
-model PhoneNumber {
-  id        String          @id @default(cuid())
-  companyId String
-  company   CustomerCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  label     String
-  number    String
-  whatsapp  Boolean         @default(false)
-  createdAt DateTime        @default(now())
-}
-
-model ProductService {
-  id            String            @id @default(cuid())
-  name          String
-  category      String
-  brand         String?
-  price         Decimal           @db.Decimal(12, 2)
-  imageUrl      String?
-  description   String?
-  specification String?
-  status        UserStatus        @default(ACTIVE)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  leads         Lead[]            @relation("LeadInterestedProduct")
-  tasks         Task[]
-  todayPlans    TodayPlan[]
-  interests     ProductInterest[]
-  quoteItems    QuotationItem[]
-  attachments   Attachment[]
-}
-
-model Lead {
-  id                  String              @id @default(cuid())
-  title               String
-  companyId           String?
-  company             CustomerCompany?    @relation(fields: [companyId], references: [id])
-  customerName        String
-  phone               String
-  email               String?
-  productInterestId   String?
-  interestedProduct   ProductService?     @relation("LeadInterestedProduct", fields: [productInterestId], references: [id])
-  status              LeadStatus          @default(NEW_LEAD)
-  score               Int                 @default(0)
-  priority            Priority            @default(MEDIUM)
-  purchaseProbability Int                 @default(0)
-  assignedToId        String?
-  assignedTo          User?               @relation("AssignedLeads", fields: [assignedToId], references: [id])
-  createdById         String?
-  createdBy           User?               @relation("CreatedLeads", fields: [createdById], references: [id])
-  followUpDate        DateTime?
-  notes               String?
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-  tasks               Task[]
-  todayPlans          TodayPlan[]
-  followUps           FollowUp[]
-  communications      CommunicationLog[]
-  quotations          Quotation[]
-  interests           ProductInterest[]
-  statusHistory       LeadStatusHistory[]
-  timelineItems       ActivityTimeline[]
-  attachments         Attachment[]
-}
-
-model Task {
-  id            String             @id @default(cuid())
-  title         String
-  description   String?
-  status        TaskStatus         @default(TODO)
-  priority      Priority           @default(MEDIUM)
-  dueDate       DateTime?
-  taskTime      DateTime?
-  reminder      String?
-  notes         String?
-  assignedById  String?
-  assignedBy    User?              @relation("TaskAssignedBy", fields: [assignedById], references: [id])
-  assignedToId  String?
-  assignedTo    User?              @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
-  leadId        String?
-  lead          Lead?              @relation(fields: [leadId], references: [id])
-  companyId     String?
-  company       CustomerCompany?   @relation(fields: [companyId], references: [id])
-  productId     String?
-  product       ProductService?    @relation(fields: [productId], references: [id])
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  timelineItems ActivityTimeline[]
-  followUps     FollowUp[]
-}
-
-model TodayPlan {
-  id           String           @id @default(cuid())
-  userId       String
-  user         User             @relation(fields: [userId], references: [id])
-  title        String
-  plannedAt    DateTime
-  priority     Priority         @default(MEDIUM)
-  note         String?
-  companyId    String?
-  company      CustomerCompany? @relation(fields: [companyId], references: [id])
-  leadId       String?
-  lead         Lead?            @relation(fields: [leadId], references: [id])
-  productId    String?
-  product      ProductService?  @relation(fields: [productId], references: [id])
-  status       TaskStatus       @default(TODO)
-  carryForward Boolean          @default(false)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-}
-
-model FollowUp {
-  id                 String             @id @default(cuid())
-  leadId             String?
-  lead               Lead?              @relation(fields: [leadId], references: [id])
-  companyId          String?
-  company            CustomerCompany?   @relation(fields: [companyId], references: [id])
-  assignedToId       String?
-  assignedTo         User?              @relation("FollowUpAssignedTo", fields: [assignedToId], references: [id])
-  method             String
-  note               String?
-  nextDiscussionPlan String?
-  status             FollowUpStatus     @default(UPCOMING)
-  priority           Priority           @default(MEDIUM)
-  followUpDate       DateTime
-  rating             Int?
-  taskId             String?
-  task               Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  completedAt        DateTime?
-  reminderSentAt     DateTime?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  notifications      Notification[]
-  timelineItems      ActivityTimeline[]
-}
-
-model CommunicationLog {
-  id               String             @id @default(cuid())
-  companyId        String?
-  company          CustomerCompany?   @relation(fields: [companyId], references: [id])
-  leadId           String?
-  lead             Lead?              @relation(fields: [leadId], references: [id])
-  userId           String?
-  user             User?              @relation(fields: [userId], references: [id])
-  method           String
-  note             String
-  communicationAt  DateTime           @default(now())
-  outcome          String?
-  rating           Int?
-  nextFollowUpDate DateTime?
-  followUpNote     String?
-  createdAt        DateTime           @default(now())
-  attachments      Attachment[]
-  timelineItems    ActivityTimeline[]
-}
-
-model ProductInterest {
-  id        String           @id @default(cuid())
-  productId String
-  product   ProductService   @relation(fields: [productId], references: [id])
-  companyId String?
-  company   CustomerCompany? @relation(fields: [companyId], references: [id])
-  leadId    String?
-  lead      Lead?            @relation(fields: [leadId], references: [id])
-  userId    String?
-  user      User?            @relation(fields: [userId], references: [id])
-  score     Int              @default(0)
-  createdAt DateTime         @default(now())
-}
-
-model Quotation {
-  id          String           @id @default(cuid())
-  quoteNumber String           @unique
-  companyId   String?
-  company     CustomerCompany? @relation(fields: [companyId], references: [id])
-  leadId      String?
-  lead        Lead?            @relation(fields: [leadId], references: [id])
-  createdById String?
-  createdBy   User?            @relation(fields: [createdById], references: [id])
-  status      QuotationStatus  @default(DRAFT)
-  subtotal    Decimal          @db.Decimal(12, 2)
-  discount    Decimal          @default(0) @db.Decimal(12, 2)
-  totalAmount Decimal          @db.Decimal(12, 2)
-  validUntil  DateTime?
-  notes       String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  items       QuotationItem[]
-}
-
-model QuotationItem {
-  id          String          @id @default(cuid())
-  quotationId String
-  quotation   Quotation       @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  productId   String?
-  product     ProductService? @relation(fields: [productId], references: [id])
-  description String
-  quantity    Int
-  unitPrice   Decimal         @db.Decimal(12, 2)
-  discount    Decimal         @default(0) @db.Decimal(12, 2)
-  total       Decimal         @db.Decimal(12, 2)
-}
-
-model Reward {
-  id        String      @id @default(cuid())
-  userId    String
-  user      User        @relation(fields: [userId], references: [id])
-  ruleId    String?
-  rule      RewardRule? @relation(fields: [ruleId], references: [id])
-  points    Int
-  reason    String
-  source    String
-  eventKey  String?
-  createdAt DateTime    @default(now())
-
-  @@unique([ruleId, eventKey])
-}
-
-model RewardRule {
-  id         String               @id @default(cuid())
-  name       String
-  trigger    String
-  points     Int
-  active     Boolean              @default(true)
-  createdAt  DateTime             @default(now())
-  updatedAt  DateTime             @updatedAt
-  rewards    Reward[]
-  histories  RewardHistory[]
-  executions RewardExecutionLog[]
-}
-
-model Target {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  period      String
-  leadsTarget Int
-  salesTarget Decimal  @db.Decimal(12, 2)
-  achieved    Decimal  @default(0) @db.Decimal(12, 2)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model ActivityLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  action    String
-  entity    String
-  entityId  String?
-  metadata  Json?
-  createdAt DateTime @default(now())
-}
-
-model Permission {
-  id              String           @id @default(cuid())
-  module          PermissionModule
-  action          PermissionAction
-  label           String
+model lead_score_rules {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String        @db.Uuid
+  action_key      String
+  name            String
   description     String?
-  createdAt       DateTime         @default(now())
-  rolePermissions RolePermission[]
-  userPermissions UserPermission[]
+  points          Int           @default(0)
+  is_active       Boolean       @default(true)
+  rule_scope      Json          @default("{}")
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime      @default(now()) @db.Timestamptz(6)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
 
-  @@unique([module, action])
+  @@unique([organization_id, action_key])
 }
 
-model RolePermission {
-  id           String     @id @default(cuid())
-  role         Role
-  permissionId String
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  enabled      Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+model lead_source_score_rules {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id   String        @db.Uuid
+  source_name       String
+  normalized_source String
+  bonus_points      Int           @default(0)
+  is_active         Boolean       @default(true)
+  rule_scope        Json          @default("{}")
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime      @default(now()) @db.Timestamptz(6)
+  organizations     organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
 
-  @@unique([role, permissionId])
+  @@unique([organization_id, normalized_source])
 }
 
-model UserPermission {
-  id           String     @id @default(cuid())
-  userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  permissionId String
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  enabled      Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+model notifications {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?        @db.Uuid
+  user_id         String         @db.Uuid
+  type            String
+  title           String
+  message         String
+  link            String?
+  is_read         Boolean        @default(false)
+  read_at         DateTime?      @db.Timestamptz(6)
+  created_at      DateTime       @default(now()) @db.Timestamptz(6)
+  scope           String         @default("workspace")
+  payload         Json?
+  organizations   organizations? @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles        profiles       @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@unique([userId, permissionId])
+  @@index([organization_id, user_id, created_at(sort: Desc)])
+  @@index([organization_id, user_id, is_read, created_at(sort: Desc)])
+  @@index([user_id, created_at(sort: Desc)])
+  @@index([user_id, scope, is_read, created_at(sort: Desc)])
 }
 
-model LeadStatusHistory {
-  id          String      @id @default(cuid())
-  leadId      String
-  lead        Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  fromStatus  LeadStatus?
-  toStatus    LeadStatus
-  changedById String?
-  changedBy   User?       @relation(fields: [changedById], references: [id])
-  note        String?
-  createdAt   DateTime    @default(now())
-
-  @@index([leadId])
+model organizations {
+  id                                               String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                                             String
+  slug                                             String                     @unique
+  company_size                                     String?
+  owner_user_id                                    String                     @db.Uuid
+  created_at                                       DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at                                       DateTime                   @db.Timestamptz(6)
+  activity_logs                                    activity_logs[]
+  admin_audit_logs                                 admin_audit_logs[]
+  challenge_templates                              challenge_templates[]
+  companies                                        companies[]
+  company_categories                               company_categories[]
+  contact_persons                                  contact_persons[]
+  document_download_logs                           document_download_logs[]
+  documents                                        documents[]
+  email_reminder_logs                              email_reminder_logs[]
+  followups                                        followups[]
+  help_request_comments                            help_request_comments[]
+  help_requests                                    help_requests[]
+  industries                                       industries[]
+  interactions                                     interactions[]
+  lead_score_rules                                 lead_score_rules[]
+  lead_source_score_rules                          lead_source_score_rules[]
+  notifications                                    notifications[]
+  profiles_organizations_owner_user_idToprofiles   profiles                   @relation("organizations_owner_user_idToprofiles", fields: [owner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pipeline_stages                                  pipeline_stages[]
+  profiles_profiles_organization_idToorganizations profiles[]                 @relation("profiles_organization_idToorganizations")
+  reward_redemptions                               reward_redemptions[]
+  rewards_catalog                                  rewards_catalog[]
+  roles                                            roles[]
+  scoring_activity_logs                            scoring_activity_logs[]
+  team_invitations                                 team_invitations[]
+  team_task_updates                                team_task_updates[]
+  team_tasks                                       team_tasks[]
+  user_badges                                      user_badges[]
+  user_challenge_progress                          user_challenge_progress[]
+  user_performance_targets                         user_performance_targets[]
+  user_roles                                       user_roles[]
+  user_streaks                                     user_streaks[]
+  wallet_transactions                              wallet_transactions[]
 }
 
-model Notification {
-  id          String           @id @default(cuid())
-  recipientId String
-  recipient   User             @relation(fields: [recipientId], references: [id], onDelete: Cascade)
-  title       String
-  message     String
-  type        NotificationType
-  entity      String?
-  entityId    String?
-  followUpId  String?
-  followUp    FollowUp?        @relation(fields: [followUpId], references: [id], onDelete: SetNull)
-  readAt      DateTime?
-  createdAt   DateTime         @default(now())
-
-  @@index([recipientId, readAt])
+model permissions {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key              String             @unique
+  name             String
+  description      String?
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  role_permissions role_permissions[]
 }
 
-model RewardHistory {
-  id        String      @id @default(cuid())
-  userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ruleId    String?
-  rule      RewardRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
-  points    Int
-  reason    String
-  source    String
-  entity    String?
-  entityId  String?
-  createdAt DateTime    @default(now())
+model pipeline_stages {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String        @db.Uuid
+  name            String
+  slug            String
+  position        Int
+  probability     Int           @default(0)
+  is_won          Boolean       @default(false)
+  is_lost         Boolean       @default(false)
+  is_active       Boolean       @default(true)
+  color           String        @default("#0f766e")
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime      @default(now()) @db.Timestamptz(6)
+  companies       companies[]
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt])
+  @@unique([organization_id, position])
+  @@unique([organization_id, slug])
 }
 
-model RewardExecutionLog {
-  id        String     @id @default(cuid())
-  ruleId    String
-  rule      RewardRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  eventKey  String
-  entity    String
-  entityId  String
-  points    Int
-  status    String     @default("COMPLETED")
-  createdAt DateTime   @default(now())
+model profiles {
+  id                                                                      String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                                                         String?                    @db.Uuid
+  email                                                                   String                     @unique
+  email_verified                                                          DateTime?                  @db.Timestamptz(6)
+  full_name                                                               String?
+  avatar_url                                                              String?
+  password_hash                                                           String?
+  job_title                                                               String?
+  department                                                              String?
+  phone                                                                   String?
+  manager_user_id                                                         String?                    @db.Uuid
+  is_active                                                               Boolean                    @default(true)
+  is_super_admin                                                          Boolean                    @default(false)
+  product_tour_last_completed_version                                     String?
+  product_tour_last_skipped_version                                       String?
+  product_tour_last_started_at                                            DateTime?                  @db.Timestamptz(6)
+  created_at                                                              DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at                                                              DateTime                   @default(now()) @db.Timestamptz(6)
+  auth_email_verified                                                     Boolean                    @default(false)
+  wallet_balance                                                          Int                        @default(0)
+  wallet_lifetime_earned                                                  Int                        @default(0)
+  access_passkeys                                                         access_passkeys[]
+  accounts                                                                accounts[]
+  activity_logs                                                           activity_logs[]
+  admin_audit_logs_admin_audit_logs_actor_user_idToprofiles               admin_audit_logs[]         @relation("admin_audit_logs_actor_user_idToprofiles")
+  admin_audit_logs_admin_audit_logs_target_user_idToprofiles              admin_audit_logs[]         @relation("admin_audit_logs_target_user_idToprofiles")
+  companies_companies_assigned_user_idToprofiles                          companies[]                @relation("companies_assigned_user_idToprofiles")
+  companies_companies_created_byToprofiles                                companies[]                @relation("companies_created_byToprofiles")
+  companies_companies_referred_by_user_idToprofiles                       companies[]                @relation("companies_referred_by_user_idToprofiles")
+  companies_companies_updated_byToprofiles                                companies[]                @relation("companies_updated_byToprofiles")
+  company_categories_company_categories_created_byToprofiles              company_categories[]       @relation("company_categories_created_byToprofiles")
+  company_categories_company_categories_updated_byToprofiles              company_categories[]       @relation("company_categories_updated_byToprofiles")
+  contact_persons_contact_persons_created_byToprofiles                    contact_persons[]          @relation("contact_persons_created_byToprofiles")
+  contact_persons_contact_persons_updated_byToprofiles                    contact_persons[]          @relation("contact_persons_updated_byToprofiles")
+  document_download_logs                                                  document_download_logs[]
+  documents_documents_created_byToprofiles                                documents[]                @relation("documents_created_byToprofiles")
+  documents_documents_updated_byToprofiles                                documents[]                @relation("documents_updated_byToprofiles")
+  documents_documents_uploaded_byToprofiles                               documents[]                @relation("documents_uploaded_byToprofiles")
+  email_reminder_logs                                                     email_reminder_logs[]
+  followups_followups_assigned_user_idToprofiles                          followups[]                @relation("followups_assigned_user_idToprofiles")
+  followups_followups_completed_byToprofiles                              followups[]                @relation("followups_completed_byToprofiles")
+  followups_followups_created_byToprofiles                                followups[]                @relation("followups_created_byToprofiles")
+  followups_followups_updated_byToprofiles                                followups[]                @relation("followups_updated_byToprofiles")
+  help_request_comments                                                   help_request_comments[]
+  help_requests_help_requests_assigned_toToprofiles                       help_requests[]            @relation("help_requests_assigned_toToprofiles")
+  help_requests_help_requests_created_byToprofiles                        help_requests[]            @relation("help_requests_created_byToprofiles")
+  help_requests_help_requests_requested_byToprofiles                      help_requests[]            @relation("help_requests_requested_byToprofiles")
+  help_requests_help_requests_resolved_byToprofiles                       help_requests[]            @relation("help_requests_resolved_byToprofiles")
+  help_requests_help_requests_updated_byToprofiles                        help_requests[]            @relation("help_requests_updated_byToprofiles")
+  industries_industries_created_byToprofiles                              industries[]               @relation("industries_created_byToprofiles")
+  industries_industries_updated_byToprofiles                              industries[]               @relation("industries_updated_byToprofiles")
+  interactions_interactions_assigned_user_idToprofiles                    interactions[]             @relation("interactions_assigned_user_idToprofiles")
+  interactions_interactions_completed_byToprofiles                        interactions[]             @relation("interactions_completed_byToprofiles")
+  interactions_interactions_created_byToprofiles                          interactions[]             @relation("interactions_created_byToprofiles")
+  interactions_interactions_updated_byToprofiles                          interactions[]             @relation("interactions_updated_byToprofiles")
+  notifications                                                           notifications[]
+  organizations_organizations_owner_user_idToprofiles                     organizations[]            @relation("organizations_owner_user_idToprofiles")
+  profiles                                                                profiles?                  @relation("profilesToprofiles", fields: [manager_user_id], references: [id])
+  other_profiles                                                          profiles[]                 @relation("profilesToprofiles")
+  organizations_profiles_organization_idToorganizations                   organizations?             @relation("profiles_organization_idToorganizations", fields: [organization_id], references: [id])
+  reward_redemptions_reward_redemptions_processed_byToprofiles            reward_redemptions[]       @relation("reward_redemptions_processed_byToprofiles")
+  reward_redemptions_reward_redemptions_user_idToprofiles                 reward_redemptions[]       @relation("reward_redemptions_user_idToprofiles")
+  scoring_activity_logs_scoring_activity_logs_actor_user_idToprofiles     scoring_activity_logs[]    @relation("scoring_activity_logs_actor_user_idToprofiles")
+  scoring_activity_logs_scoring_activity_logs_user_idToprofiles           scoring_activity_logs[]    @relation("scoring_activity_logs_user_idToprofiles")
+  sessions                                                                sessions[]
+  signup_requests                                                         signup_requests[]
+  team_invitations                                                        team_invitations[]
+  team_task_updates                                                       team_task_updates[]
+  team_tasks_team_tasks_assigned_toToprofiles                             team_tasks[]               @relation("team_tasks_assigned_toToprofiles")
+  team_tasks_team_tasks_created_byToprofiles                              team_tasks[]               @relation("team_tasks_created_byToprofiles")
+  team_tasks_team_tasks_manager_owner_idToprofiles                        team_tasks[]               @relation("team_tasks_manager_owner_idToprofiles")
+  user_badges_user_badges_awarded_byToprofiles                            user_badges[]              @relation("user_badges_awarded_byToprofiles")
+  user_badges_user_badges_user_idToprofiles                               user_badges[]              @relation("user_badges_user_idToprofiles")
+  user_challenge_progress                                                 user_challenge_progress[]
+  user_performance_targets_user_performance_targets_assigned_byToprofiles user_performance_targets[] @relation("user_performance_targets_assigned_byToprofiles")
+  user_performance_targets_user_performance_targets_user_idToprofiles     user_performance_targets[] @relation("user_performance_targets_user_idToprofiles")
+  user_roles_user_roles_assigned_byToprofiles                             user_roles[]               @relation("user_roles_assigned_byToprofiles")
+  user_roles_user_roles_user_idToprofiles                                 user_roles[]               @relation("user_roles_user_idToprofiles")
+  user_streaks                                                            user_streaks[]
+  wallet_transactions_wallet_transactions_created_byToprofiles            wallet_transactions[]      @relation("wallet_transactions_created_byToprofiles")
+  wallet_transactions_wallet_transactions_user_idToprofiles               wallet_transactions[]      @relation("wallet_transactions_user_idToprofiles")
 
-  @@unique([ruleId, eventKey])
+  @@index([manager_user_id])
+  @@index([organization_id])
 }
 
-model PerformanceMetric {
-  id                 String   @id @default(cuid())
-  userId             String
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  period             String
-  leadsAdded         Int      @default(0)
-  followUpsCompleted Int      @default(0)
-  meetingsScheduled  Int      @default(0)
-  salesCompleted     Int      @default(0)
-  activityCount      Int      @default(0)
-  conversionRate     Decimal  @default(0) @db.Decimal(5, 2)
-  salesAmount        Decimal  @default(0) @db.Decimal(12, 2)
-  rewardPoints       Int      @default(0)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  @@unique([userId, period])
+model reward_redemptions {
+  id                                                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                                    String          @db.Uuid
+  user_id                                            String          @db.Uuid
+  reward_id                                          String          @db.Uuid
+  points_spent                                       Int
+  status                                             String          @default("pending")
+  fulfillment_notes                                  String?
+  processed_by                                       String?         @db.Uuid
+  processed_at                                       DateTime?       @db.Timestamptz(6)
+  metadata                                           Json            @default("{}")
+  created_at                                         DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at                                         DateTime        @default(now()) @db.Timestamptz(6)
+  organizations                                      organizations   @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles_reward_redemptions_processed_byToprofiles profiles?       @relation("reward_redemptions_processed_byToprofiles", fields: [processed_by], references: [id])
+  rewards_catalog                                    rewards_catalog @relation(fields: [reward_id], references: [id])
+  profiles_reward_redemptions_user_idToprofiles      profiles        @relation("reward_redemptions_user_idToprofiles", fields: [user_id], references: [id], onDelete: Cascade)
 }
 
-model ReportLog {
-  id            String             @id @default(cuid())
-  reportType    ReportType
-  format        ImportExportFormat
-  requestedById String?
-  requestedBy   User?              @relation(fields: [requestedById], references: [id], onDelete: SetNull)
-  filters       Json?
-  fileUrl       String?
-  status        ImportExportStatus @default(PENDING)
-  createdAt     DateTime           @default(now())
-  completedAt   DateTime?
+model rewards_catalog {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id       String                  @db.Uuid
+  name                  String
+  description           String?
+  reward_type           String
+  cost_points           Int
+  feature_key           String?
+  inventory             Int?
+  fulfillment_mode      String                  @default("manual")
+  is_active             Boolean                 @default(true)
+  metadata              Json                    @default("{}")
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  reward_redemptions    reward_redemptions[]
+  organizations         organizations           @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  scoring_activity_logs scoring_activity_logs[]
+  user_badges           user_badges[]
+  wallet_transactions   wallet_transactions[]
 }
 
-model ImportExportLog {
-  id            String             @id @default(cuid())
-  type          ImportExportType
-  module        PermissionModule
-  format        ImportExportFormat
-  requestedById String?
-  requestedBy   User?              @relation(fields: [requestedById], references: [id], onDelete: SetNull)
-  fileName      String?
-  fileUrl       String?
-  status        ImportExportStatus @default(PENDING)
-  processedRows Int                @default(0)
-  failedRows    Int                @default(0)
-  errorMessage  String?
-  createdAt     DateTime           @default(now())
-  completedAt   DateTime?
+model role_permissions {
+  role_id       String      @db.Uuid
+  permission_id String      @db.Uuid
+  created_at    DateTime    @default(now()) @db.Timestamptz(6)
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@id([role_id, permission_id])
 }
 
-model Attachment {
-  id                 String            @id @default(cuid())
-  fileName           String
-  fileUrl            String
-  fileType           String?
-  size               Int?
-  uploadedById       String?
-  uploadedBy         User?             @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
-  companyId          String?
-  company            CustomerCompany?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  leadId             String?
-  lead               Lead?             @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  productId          String?
-  product            ProductService?   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  communicationLogId String?
-  communicationLog   CommunicationLog? @relation(fields: [communicationLogId], references: [id], onDelete: Cascade)
-  createdAt          DateTime          @default(now())
+model roles {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String             @db.Uuid
+  name             String
+  slug             String
+  description      String?
+  is_system        Boolean            @default(true)
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime           @default(now()) @db.Timestamptz(6)
+  role_permissions role_permissions[]
+  organizations    organizations      @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  team_invitations team_invitations[]
+  user_roles       user_roles[]
+
+  @@unique([organization_id, slug])
 }
 
-model ActivityTimeline {
-  id                 String            @id @default(cuid())
-  title              String
-  description        String?
-  entity             String
-  entityId           String?
-  userId             String?
-  user               User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  companyId          String?
-  company            CustomerCompany?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  leadId             String?
-  lead               Lead?             @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  taskId             String?
-  task               Task?             @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  followUpId         String?
-  followUp           FollowUp?         @relation(fields: [followUpId], references: [id], onDelete: Cascade)
-  communicationLogId String?
-  communicationLog   CommunicationLog? @relation(fields: [communicationLogId], references: [id], onDelete: Cascade)
-  metadata           Json?
-  createdAt          DateTime          @default(now())
+model scoring_activity_logs {
+  id                                                     String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                                        String               @db.Uuid
+  wallet_transaction_id                                  String?              @db.Uuid
+  user_id                                                String               @db.Uuid
+  actor_user_id                                          String?              @db.Uuid
+  action_key                                             String
+  title                                                  String
+  description                                            String?
+  points_delta                                           Int
+  company_id                                             String?              @db.Uuid
+  followup_id                                            String?              @db.Uuid
+  challenge_id                                           String?              @db.Uuid
+  reward_id                                              String?              @db.Uuid
+  source_record_id                                       String?              @db.Uuid
+  source_record_type                                     String?
+  metadata                                               Json                 @default("{}")
+  created_at                                             DateTime             @default(now()) @db.Timestamptz(6)
+  profiles_scoring_activity_logs_actor_user_idToprofiles profiles?            @relation("scoring_activity_logs_actor_user_idToprofiles", fields: [actor_user_id], references: [id])
+  challenge_templates                                    challenge_templates? @relation(fields: [challenge_id], references: [id])
+  companies                                              companies?           @relation(fields: [company_id], references: [id])
+  followups                                              followups?           @relation(fields: [followup_id], references: [id])
+  organizations                                          organizations        @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  rewards_catalog                                        rewards_catalog?     @relation(fields: [reward_id], references: [id])
+  profiles_scoring_activity_logs_user_idToprofiles       profiles             @relation("scoring_activity_logs_user_idToprofiles", fields: [user_id], references: [id], onDelete: Cascade)
+  wallet_transactions                                    wallet_transactions? @relation(fields: [wallet_transaction_id], references: [id])
 
-  @@index([entity, entityId])
+  @@index([organization_id, user_id, created_at(sort: Desc)])
 }
 
-model SystemSetting {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     Json
-  group     String   @default("general")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model sessions {
+  id           String   @id
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  ip_address   String?
+  updated_at   DateTime @db.Timestamptz(6)
+  user_agent   String?
+  profiles     profiles @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model ReportExport {
-  id            String     @id @default(cuid())
-  reportType    ReportType
-  format        String
-  requestedById String?
-  requestedBy   User?      @relation(fields: [requestedById], references: [id])
-  fileUrl       String?
-  createdAt     DateTime   @default(now())
+model signup_requests {
+  id                     String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                  String            @unique
+  full_name              String?
+  password_hash          String
+  status                 String            @default("pending")
+  requested_at           DateTime          @default(now()) @db.Timestamptz(6)
+  approved_at            DateTime?         @db.Timestamptz(6)
+  rejected_at            DateTime?         @db.Timestamptz(6)
+  completed_at           DateTime?         @db.Timestamptz(6)
+  reviewed_by            String?           @db.Uuid
+  notes                  String?
+  last_passkey_issued_at DateTime?         @db.Timestamptz(6)
+  created_at             DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime          @default(now()) @db.Timestamptz(6)
+  access_passkeys        access_passkeys[]
+  profiles               profiles?         @relation(fields: [reviewed_by], references: [id])
+
+  @@index([reviewed_by])
+  @@index([status, requested_at(sort: Desc)])
+}
+
+model team_invitations {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String        @db.Uuid
+  email           String
+  role_id         String        @db.Uuid
+  invited_by      String?       @db.Uuid
+  token           String        @unique
+  full_name       String?
+  job_title       String?
+  department      String?
+  phone           String?
+  status          String        @default("pending")
+  expires_at      DateTime      @db.Timestamptz(6)
+  accepted_at     DateTime?     @db.Timestamptz(6)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime      @default(now()) @db.Timestamptz(6)
+  profiles        profiles?     @relation(fields: [invited_by], references: [id])
+  organizations   organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  roles           roles         @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([organization_id])
+  @@index([token])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model team_task_updates {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  team_task_id      String        @db.Uuid
+  organization_id   String        @db.Uuid
+  author_user_id    String?       @db.Uuid
+  update_type       String
+  message           String?
+  previous_status   String?
+  next_status       String?
+  previous_progress Int?
+  next_progress     Int?
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  profiles          profiles?     @relation(fields: [author_user_id], references: [id], onUpdate: NoAction)
+  organizations     organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  team_tasks        team_tasks    @relation(fields: [team_task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([organization_id, created_at(sort: Desc)], map: "team_task_updates_org_created_idx")
+  @@index([team_task_id, created_at(sort: Desc)], map: "team_task_updates_task_created_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model team_tasks {
+  id                                             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                                String              @db.Uuid
+  title                                          String
+  description                                    String?
+  status                                         String              @default("todo")
+  priority                                       String              @default("medium")
+  progress_percent                               Int                 @default(0)
+  start_date                                     DateTime?           @db.Date
+  due_date                                       DateTime?           @db.Date
+  completed_at                                   DateTime?           @db.Timestamptz(6)
+  created_by                                     String              @db.Uuid
+  assigned_to                                    String?             @db.Uuid
+  manager_owner_id                               String?             @db.Uuid
+  related_entity_type                            String?
+  related_entity_id                              String?             @db.Uuid
+  created_at                                     DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at                                     DateTime            @default(now()) @db.Timestamptz(6)
+  team_task_updates                              team_task_updates[]
+  profiles_team_tasks_assigned_toToprofiles      profiles?           @relation("team_tasks_assigned_toToprofiles", fields: [assigned_to], references: [id], onUpdate: NoAction)
+  profiles_team_tasks_created_byToprofiles       profiles            @relation("team_tasks_created_byToprofiles", fields: [created_by], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles_team_tasks_manager_owner_idToprofiles profiles?           @relation("team_tasks_manager_owner_idToprofiles", fields: [manager_owner_id], references: [id], onUpdate: NoAction)
+  organizations                                  organizations       @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([organization_id, assigned_to, status, due_date], map: "team_tasks_org_assigned_status_due_idx")
+  @@index([organization_id, created_by, created_at(sort: Desc)], map: "team_tasks_org_created_by_created_idx")
+  @@index([organization_id, manager_owner_id, status], map: "team_tasks_org_manager_status_idx")
+}
+
+model user_badges {
+  id                                        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                           String           @db.Uuid
+  user_id                                   String           @db.Uuid
+  reward_id                                 String?          @db.Uuid
+  badge_key                                 String
+  badge_name                                String
+  badge_description                         String?
+  metadata                                  Json             @default("{}")
+  awarded_at                                DateTime         @default(now()) @db.Timestamptz(6)
+  awarded_by                                String?          @db.Uuid
+  profiles_user_badges_awarded_byToprofiles profiles?        @relation("user_badges_awarded_byToprofiles", fields: [awarded_by], references: [id])
+  organizations                             organizations    @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  rewards_catalog                           rewards_catalog? @relation(fields: [reward_id], references: [id])
+  profiles_user_badges_user_idToprofiles    profiles         @relation("user_badges_user_idToprofiles", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, user_id, badge_key])
+}
+
+model user_challenge_progress {
+  id                           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id              String               @db.Uuid
+  user_id                      String               @db.Uuid
+  challenge_template_id        String               @db.Uuid
+  progress_count               Int                  @default(0)
+  target_count                 Int
+  is_completed                 Boolean              @default(false)
+  completed_at                 DateTime?            @db.Timestamptz(6)
+  bonus_awarded_transaction_id String?              @db.Uuid
+  window_starts_at             DateTime             @db.Timestamptz(6)
+  window_ends_at               DateTime             @db.Timestamptz(6)
+  last_event_at                DateTime?            @db.Timestamptz(6)
+  created_at                   DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime             @default(now()) @db.Timestamptz(6)
+  wallet_transactions          wallet_transactions? @relation(fields: [bonus_awarded_transaction_id], references: [id])
+  challenge_templates          challenge_templates  @relation(fields: [challenge_template_id], references: [id], onDelete: Cascade)
+  organizations                organizations        @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles                     profiles             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, user_id, challenge_template_id, window_starts_at])
+}
+
+model user_performance_targets {
+  id                                                      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                                         String        @db.Uuid
+  user_id                                                 String        @db.Uuid
+  metric_key                                              String
+  period_type                                             String
+  target_value                                            Int
+  effective_date                                          DateTime      @db.Date
+  notes                                                   String?
+  assigned_by                                             String?       @db.Uuid
+  created_at                                              DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at                                              DateTime      @default(now()) @db.Timestamptz(6)
+  profiles_user_performance_targets_assigned_byToprofiles profiles?     @relation("user_performance_targets_assigned_byToprofiles", fields: [assigned_by], references: [id])
+  organizations                                           organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles_user_performance_targets_user_idToprofiles     profiles      @relation("user_performance_targets_user_idToprofiles", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, user_id, metric_key, period_type, effective_date])
+  @@index([organization_id, user_id, period_type, effective_date(sort: Desc)])
+}
+
+model user_roles {
+  id                                        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                           String        @db.Uuid
+  user_id                                   String        @db.Uuid
+  role_id                                   String        @db.Uuid
+  assigned_by                               String?       @db.Uuid
+  assigned_at                               DateTime      @default(now()) @db.Timestamptz(6)
+  profiles_user_roles_assigned_byToprofiles profiles?     @relation("user_roles_assigned_byToprofiles", fields: [assigned_by], references: [id])
+  organizations                             organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  roles                                     roles         @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  profiles_user_roles_user_idToprofiles     profiles      @relation("user_roles_user_idToprofiles", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, user_id, role_id])
+}
+
+model user_streaks {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id    String        @db.Uuid
+  user_id            String        @db.Uuid
+  streak_key         String
+  current_streak     Int           @default(0)
+  best_streak        Int           @default(0)
+  last_activity_date DateTime?     @db.Date
+  created_at         DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime      @default(now()) @db.Timestamptz(6)
+  organizations      organizations @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  profiles           profiles      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, user_id, streak_key])
+}
+
+model verification_tokens {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  id         String   @id
+  updated_at DateTime @db.Timestamptz(6)
+
+  @@index([identifier])
+}
+
+model wallet_transactions {
+  id                                                String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                                   String                    @db.Uuid
+  user_id                                           String                    @db.Uuid
+  transaction_type                                  String
+  action_key                                        String
+  points_delta                                      Int
+  balance_after                                     Int
+  company_id                                        String?                   @db.Uuid
+  followup_id                                       String?                   @db.Uuid
+  challenge_id                                      String?                   @db.Uuid
+  reward_id                                         String?                   @db.Uuid
+  source_record_id                                  String?                   @db.Uuid
+  source_record_type                                String?
+  idempotency_key                                   String
+  metadata                                          Json                      @default("{}")
+  created_by                                        String?                   @db.Uuid
+  created_at                                        DateTime                  @default(now()) @db.Timestamptz(6)
+  scoring_activity_logs                             scoring_activity_logs[]
+  user_challenge_progress                           user_challenge_progress[]
+  challenge_templates                               challenge_templates?      @relation(fields: [challenge_id], references: [id])
+  companies                                         companies?                @relation(fields: [company_id], references: [id])
+  profiles_wallet_transactions_created_byToprofiles profiles?                 @relation("wallet_transactions_created_byToprofiles", fields: [created_by], references: [id])
+  followups                                         followups?                @relation(fields: [followup_id], references: [id])
+  organizations                                     organizations             @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  rewards_catalog                                   rewards_catalog?          @relation(fields: [reward_id], references: [id])
+  profiles_wallet_transactions_user_idToprofiles    profiles                  @relation("wallet_transactions_user_idToprofiles", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, idempotency_key])
+  @@index([organization_id, user_id, created_at(sort: Desc)])
 }

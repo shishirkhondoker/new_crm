@@ -43,30 +43,20 @@ export async function getCurrentSession() {
 export async function getCurrentUser(preferredRole?: Role): Promise<ShellUser | null> {
   const session = await getCurrentSession();
   const role = preferredRole ?? session.role;
+
+  if (!session.mobile) return null;
+
   const prisma = getPrisma();
+  const user = await prisma.user.findFirst({
+    where: {
+      mobile: session.mobile,
+      ...(role ? { role } : {}),
+      status: "ACTIVE",
+    },
+  });
 
-  const user = session.mobile
-    ? await prisma.user.findFirst({
-        where: {
-          mobile: session.mobile,
-          ...(role ? { role } : {}),
-          status: "ACTIVE",
-        },
-      })
-    : null;
-
-  const fallback = user
-    ? null
-    : await prisma.user.findFirst({
-        where: {
-          ...(role ? { role } : {}),
-          status: "ACTIVE",
-        },
-        orderBy: { createdAt: "asc" },
-      });
-
-  if (!user && !fallback) return null;
-  return toShellUser((user ?? fallback) as NonNullable<typeof user>);
+  if (!user) return null;
+  return toShellUser(user);
 }
 
 export async function requireCurrentUser(role: Role) {
