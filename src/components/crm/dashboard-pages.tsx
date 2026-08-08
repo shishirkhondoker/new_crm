@@ -25,6 +25,7 @@ import {
   PhoneForwarded,
   Plus,
   Search,
+  Sparkles,
   Target,
   Trophy,
   Users,
@@ -92,8 +93,20 @@ function bucketUpcomingTasks(rows: TodayTaskApiRow[]) {
 }
 
 function useDashboardGreeting(name: string, _role: Role) {
+  const weekdayMessages = [
+    "Plan clearly, follow up warmly, and make the next week easier.",
+    "Start strong. Every follow-up today can open a new opportunity.",
+    "Consistency wins deals. Keep the conversations moving.",
+    "Midweek momentum matters. One quality call can change the week.",
+    "Stay sharp. The best customers often need one more follow-up.",
+    "Finish the week with focus. Close loops and create next steps.",
+    "Small progress today builds a stronger pipeline tomorrow.",
+  ];
+  const message = weekdayMessages[new Date().getDay()] ?? weekdayMessages[0];
+
   return {
     title: `Hello, ${getPreferredDashboardName(name)}`,
+    message,
   };
 }
 
@@ -159,7 +172,7 @@ function CreateTodayTaskButton({
   onCreated?: (row: TodayTaskApiRow) => void;
 }) {
   const router = useRouter();
-  const { refreshTaskCount } = useTaskCounterContext();
+  const { refreshTaskCount, refreshCompletedTaskCount } = useTaskCounterContext();
   const [open, setOpen] = React.useState(false);
 
   const handleCreated = React.useCallback((row: TodayTaskApiRow) => {
@@ -2690,12 +2703,12 @@ function SupervisorProductIntelligencePanelV2({ workspace }: { workspace: CrmWor
 type MarketerTaskFilter = TodayWorkFilter;
 
 const marketerKpiConfig = {
-  "Today's Tasks": { icon: ClipboardCheck, tone: "#2563eb", helper: "Unified work queue" },
-  "Pending Tasks": { icon: AlertTriangle, tone: "#f59e0b", helper: "Need your action" },
-  "Follow-ups Due": { icon: PhoneForwarded, tone: "#4f46e5", helper: "Overdue & today" },
-  "New Leads": { icon: Target, tone: "#059669", helper: "Assigned leads" },
-  "Meetings Today": { icon: CalendarClock, tone: "#0891b2", helper: "Scheduled meeting" },
-  "Reward Points": { icon: Award, tone: "#e11d48", helper: "This month" },
+  "Today's Tasks": { icon: ClipboardCheck, tone: "linear-gradient(135deg,#2563EB 0%,#1D4ED8 52%,#4F46E5 100%)", helper: "Unified work queue" },
+  "Pending Tasks": { icon: AlertTriangle, tone: "linear-gradient(135deg,#F59E0B 0%,#F97316 52%,#EA580C 100%)", helper: "Need your action" },
+  "Follow-ups Due": { icon: PhoneForwarded, tone: "linear-gradient(135deg,#4F46E5 0%,#7C3AED 56%,#4338CA 100%)", helper: "Overdue & today" },
+  "New Leads": { icon: Target, tone: "linear-gradient(135deg,#10B981 0%,#059669 56%,#047857 100%)", helper: "Assigned leads" },
+  "Meetings Today": { icon: CalendarClock, tone: "linear-gradient(135deg,#06B6D4 0%,#0891B2 54%,#0E7490 100%)", helper: "Scheduled meeting" },
+  "Reward Points": { icon: Award, tone: "linear-gradient(135deg,#F43F5E 0%,#E11D48 56%,#BE123C 100%)", helper: "This month" },
 } as const;
 
 function marketerActivityIcon(title: string, detail: string) {
@@ -2730,7 +2743,7 @@ function MarketerTaskPanel({
   iconTone: string;
   panelId?: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   accentClassName: string;
   action?: React.ReactNode;
   footer?: React.ReactNode;
@@ -2739,29 +2752,31 @@ function MarketerTaskPanel({
   hideSubtitleOnMobile?: boolean;
 }) {
   return (
-    <section id={panelId} className="scroll-mt-24 overflow-hidden rounded-[24px] border border-slate-200/80 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)] sm:rounded-[28px]">
+    <section id={panelId} className="scroll-mt-24 overflow-hidden rounded-[22px] border border-slate-200/80 bg-white/95 shadow-[0_22px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm transition-all duration-300 hover:shadow-[0_28px_72px_rgba(15,23,42,0.11)]">
       <div className={cn("h-3 w-full", accentClassName)} />
-      <div className="px-3 py-3.5 sm:px-6 sm:py-4">
-        <div className="flex flex-col gap-3 border-b border-slate-100 pb-4">
+      <div className="px-4 py-5 sm:px-7 sm:py-6">
+        <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm", iconTone)}>
+            <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] shadow-[0_14px_28px_rgba(37,99,235,0.22)]", iconTone)}>
               <Icon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h3 className={cn("text-[1.15rem] font-black tracking-[-0.03em] text-slate-950 sm:text-[1.35rem]", hideTitleOnMobile && "hidden sm:block")}>
+              <h3 className={cn("text-[24px] font-bold leading-tight tracking-[-0.03em] text-slate-950", hideTitleOnMobile && "hidden sm:block")}>
                 {title}
               </h3>
-              <p className={cn("mt-0.5 text-xs font-medium text-slate-500 sm:text-sm", hideSubtitleOnMobile && "hidden sm:block")}>
-                {subtitle}
-              </p>
+              {subtitle ? (
+                <p className={cn("mt-1 text-[15px] font-medium leading-6 text-slate-600", hideSubtitleOnMobile && "hidden sm:block")}>
+                  {subtitle}
+                </p>
+              ) : null}
             </div>
           </div>
-          {action ? <div className="w-full">{action}</div> : null}
+          {action ? <div className="w-full lg:w-auto">{action}</div> : null}
         </div>
 
-        <div className="pt-4">{children}</div>
+        <div className="pt-5">{children}</div>
 
-        {footer ? <div className="border-t border-slate-100 pt-4">{footer}</div> : null}
+        {footer ? <div className="mt-5 border-t border-slate-100 pt-5">{footer}</div> : null}
       </div>
     </section>
   );
@@ -2783,7 +2798,7 @@ function MarketerKpiGrid({ workspace }: { workspace: CrmWorkspace }) {
   ];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 2xl:gap-4">
       {cards.map((item) => {
         const config = marketerKpiConfig[item.title as keyof typeof marketerKpiConfig];
         return (
@@ -2832,7 +2847,7 @@ function MarketerTodayTaskSection({
       .sort((left, right) => new Date(left.followUpDateIso).getTime() - new Date(right.followUpDateIso).getTime())
   ));
   const [followUpSummaryCounts, setFollowUpSummaryCounts] = React.useState(() => workspace.followUpSummary);
-  const { refreshTaskCount } = useTaskCounterContext();
+  const { refreshTaskCount, refreshCompletedTaskCount } = useTaskCounterContext();
   const scheduledRefreshTimers = React.useRef<number[]>([]);
   const crmDayRefreshTimer = React.useRef<number | null>(null);
   const shownReminderKeys = React.useRef<Set<string>>(new Set());
@@ -2994,9 +3009,10 @@ function MarketerTodayTaskSection({
       crmDayRefreshTimer.current = null;
       void loadTasks();
       void refreshTaskCount();
+      void refreshCompletedTaskCount();
       scheduleNextCrmDayRefresh();
     }, delay + 250);
-  }, [loadTasks, refreshTaskCount]);
+  }, [loadTasks, refreshCompletedTaskCount, refreshTaskCount]);
 
   React.useEffect(() => {
     scheduleNextCrmDayRefresh();
@@ -3021,6 +3037,7 @@ function MarketerTodayTaskSection({
         maybeOpenDueReminder(rows, isoDate);
       });
       void refreshTaskCount();
+      void refreshCompletedTaskCount();
       return;
     }
 
@@ -3029,11 +3046,12 @@ function MarketerTodayTaskSection({
         maybeOpenDueReminder(rows, isoDate);
       });
       void refreshTaskCount();
+      void refreshCompletedTaskCount();
       scheduledRefreshTimers.current = scheduledRefreshTimers.current.filter((value) => value !== timer);
     }, delay + 250);
 
     scheduledRefreshTimers.current.push(timer);
-  }, [loadTasks, maybeOpenDueReminder, refreshTaskCount]);
+  }, [loadTasks, maybeOpenDueReminder, refreshCompletedTaskCount, refreshTaskCount]);
 
   React.useEffect(() => {
     maybeOpenDueReminder(activeTasks);
@@ -3081,6 +3099,7 @@ function MarketerTodayTaskSection({
       maybeOpenDueReminder(rows, scheduledDate);
     });
     void refreshTaskCount();
+    void refreshCompletedTaskCount();
     void loadFollowUpSummary();
     scheduleQueueRefreshAt(scheduledDate);
   };
@@ -3091,6 +3110,7 @@ function MarketerTodayTaskSection({
       maybeOpenDueReminder(rows, scheduledDate);
     });
     void refreshTaskCount();
+    void refreshCompletedTaskCount();
     void loadFollowUpSummary();
     scheduleQueueRefreshAt(scheduledDate);
   };
@@ -3305,10 +3325,11 @@ function MarketerTodayTaskSection({
       setEditingTask(null);
       void loadTasks();
       void refreshTaskCount();
+      void refreshCompletedTaskCount();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Task delete failed.");
     }
-  }, [loadTasks, refreshTaskCount]);
+  }, [loadTasks, refreshCompletedTaskCount, refreshTaskCount]);
 
   const handleFollowUpDelete = React.useCallback(async (item: TodayWorkQueueItem) => {
     if (item.sourceType !== "FOLLOW_UP") return;
@@ -3322,11 +3343,12 @@ function MarketerTodayTaskSection({
       setEditingFollowUp(null);
       void loadTasks();
       void refreshTaskCount();
+      void refreshCompletedTaskCount();
       void loadFollowUpSummary();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Follow-up delete failed.");
     }
-  }, [loadTasks, loadFollowUpSummary, refreshTaskCount]);
+  }, [loadTasks, loadFollowUpSummary, refreshCompletedTaskCount, refreshTaskCount]);
 
   return (
     <>
@@ -3334,14 +3356,12 @@ function MarketerTodayTaskSection({
         {error ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
         {actionError ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{actionError}</p> : null}
 
-        <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:gap-5">
-          <div className="space-y-5">
+        <div className="space-y-5">
             <MarketerTaskPanel
               icon={ClipboardCheck}
               iconTone="bg-[linear-gradient(135deg,#2563eb,#3b82f6)] text-white"
               panelId="today-tasks"
               title="Today's Tasks"
-              subtitle={`${counts.all} task${counts.all === 1 ? "" : "s"} pending`}
               accentClassName="bg-[linear-gradient(90deg,rgba(37,99,235,0.14),rgba(59,130,246,0.04),transparent)]"
               action={
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
@@ -3367,7 +3387,7 @@ function MarketerTodayTaskSection({
                 <div className="flex justify-center">
                   <Link
                     href={rolePath(role, "tasks")}
-                    className="inline-flex items-center gap-2 text-sm font-black text-blue-600 transition hover:text-blue-700"
+                    className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(37,99,235,0.22)] transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_18px_36px_rgba(37,99,235,0.3)]"
                   >
                     View All Tasks
                     <ArrowRight className="h-4 w-4" />
@@ -3405,7 +3425,7 @@ function MarketerTodayTaskSection({
                 </div>
               ) : null}
 
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="mb-5 flex flex-wrap items-center gap-1.5 sm:gap-2">
                 {chips.map((chip) => {
                   const active = activeFilter === chip.key;
 
@@ -3426,18 +3446,13 @@ function MarketerTodayTaskSection({
                 })}
               </div>
 
-              <div className="mt-4">
-                <Badge variant={counts.overdue ? "warning" : "neutral"} className="mb-3 inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold">
-                  {counts.all} Pending
-                </Badge>
-              </div>
-
               <TodayWorkQueueList
-                rows={dashboardTaskRows}
+                rows={dashboardTaskRows.slice(0, 3)}
                 loading={loading}
                 viewerRole={role}
                 emptyMessage={activeSearchQuery.trim() ? "No matching work item found." : "No work items in this view."}
                 activeItemId={completionItem?.id ?? null}
+                maxHeightClassName="max-h-none"
                 onEdit={setEditingTask}
                 onDelete={(task) => void handleTaskDelete(task)}
                 onEditFollowUp={setEditingFollowUp}
@@ -3448,98 +3463,6 @@ function MarketerTodayTaskSection({
                 }}
               />
             </MarketerTaskPanel>
-
-          </div>
-
-          <MarketerTaskPanel
-            icon={CheckCircle2}
-            iconTone="bg-[linear-gradient(135deg,#22c55e,#34d399)] text-white"
-            panelId="completed-tasks"
-            title="Completed Tasks"
-            subtitle={`${exactCompletedTasks.length} task${exactCompletedTasks.length === 1 ? "" : "s"} completed`}
-            accentClassName="bg-[linear-gradient(90deg,rgba(16,185,129,0.16),rgba(167,243,208,0.1),transparent)]"
-            hideTitleOnMobile
-            hideSubtitleOnMobile
-            action={
-              <div className="w-full space-y-3 sm:w-auto">
-                <div className="flex w-full flex-nowrap gap-1.5 overflow-x-auto pb-1">
-                  {([
-                    { key: "all", label: "All", count: completedCounts.all },
-                    { key: "call", label: "Call", count: completedCounts.call },
-                    { key: "follow-up", label: "Follow-up", count: completedCounts["follow-up"] },
-                    { key: "demo-send", label: "Demo Send", count: completedCounts["demo-send"] },
-                    { key: "quotation", label: "Quotation", count: completedCounts.quotation },
-                    { key: "sale-won", label: "Sale Won", count: completedCounts["sale-won"] },
-                    { key: "lead-lost", label: "Lead Lost", count: completedCounts["lead-lost"] },
-                  ] as const)
-                    .map((chip) => {
-                    const active = completedFilter === chip.key;
-                    return (
-                      <button
-                        key={chip.key}
-                        type="button"
-                        onClick={() => setCompletedFilter(chip.key)}
-                        className={cn(
-                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold shadow-sm transition",
-                          active
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 bg-white text-slate-500 hover:border-emerald-100 hover:text-slate-700",
-                        )}
-                      >
-                        {chip.label}
-                        <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", active ? "bg-white text-emerald-700" : "bg-slate-100 text-slate-500")}>{chip.count}</span>
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={() => setFollowUpSummaryOpen(true)}
-                    className={cn(
-                      "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold transition",
-                      followUpSummaryCounts.actionable
-                        ? "border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 hover:bg-orange-100"
-                        : "border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:bg-slate-100",
-                    )}
-                  >
-                    {followUpSummaryCounts.actionable} Follow-ups Pending
-                  </button>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                  <div className="relative w-full sm:w-[240px] sm:min-w-0">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      value={completedSearchQuery}
-                      onChange={(event) => setCompletedSearchQuery(event.target.value)}
-                      placeholder="Search company, phone, jila..."
-                      className="h-10 rounded-2xl border-slate-200 bg-slate-50/80 pl-9 text-sm font-medium shadow-[inset_0_1px_1px_rgba(15,23,42,0.03)]"
-                    />
-                  </div>
-                  <Badge variant="neutral" className="rounded-full px-3 py-1 text-xs font-bold">{exactCompletedTasks.length} Exact Completed</Badge>
-                </div>
-              </div>
-            }
-            footer={(
-              <div className="flex justify-center">
-                <Link
-                  href={rolePath(role, "tasks")}
-                  className="inline-flex items-center gap-2 text-sm font-black text-emerald-600 transition hover:text-emerald-700"
-                >
-                  View All Completed
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-            )}
-          >
-            <CompletedWorkList
-              rows={dashboardCompletedRows}
-              loading={loading}
-              viewerRole={role}
-              emptyMessage={completedSearchQuery.trim() ? "No matching completed task found." : "No completed tasks yet."}
-              onEditCompletedTask={handleEditCompletedTask}
-              onOpen={handleEditCompletedTask}
-              previewCount={6}
-            />
-          </MarketerTaskPanel>
         </div>
       </div>
 
@@ -3551,6 +3474,7 @@ function MarketerTodayTaskSection({
           setEditingTask(null);
           void loadTasks();
           void refreshTaskCount();
+          void refreshCompletedTaskCount();
         }}
         role={workspace.user.role}
         workspace={workspace}
@@ -3569,6 +3493,7 @@ function MarketerTodayTaskSection({
           setEditingFollowUp(null);
           void loadTasks();
           void refreshTaskCount();
+          void refreshCompletedTaskCount();
           void loadFollowUpSummary();
         }}
       />
@@ -3816,16 +3741,16 @@ function MarketerFollowUpCenter({
   return (
     <DashboardCard
       title="Scheduled For Tomorrow"
-      action={<Link href={rolePath("MARKETER", "tasks")} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-50">View All <ArrowRight className="h-4 w-4" /></Link>}
+      action={<Link href={rolePath("MARKETER", "tasks")} className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-blue-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:shadow-md">View All <ArrowRight className="h-4 w-4" /></Link>}
     >
       {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
-      <div className="rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 via-blue-50 to-white p-4">
+      <div className="rounded-[20px] border border-sky-200 bg-gradient-to-r from-sky-50 via-blue-50 to-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="default" className="rounded-full px-3 py-1 text-xs font-bold">Tomorrow {buckets.tomorrow.length}</Badge>
           <Badge variant="neutral" className="rounded-full px-3 py-1 text-xs font-bold">Next {buckets.later.length}</Badge>
           <Badge variant="neutral" className="rounded-full px-3 py-1 text-xs font-bold">Total {buckets.total}</Badge>
         </div>
-        <p className="mt-3 text-sm font-semibold text-slate-900">
+        <p className="mt-4 text-[15px] font-medium leading-6 text-slate-700">
           {buckets.tomorrow.length
             ? `${buckets.tomorrowLabel} er jonno ${buckets.tomorrow.length} ta task ready ache.`
             : buckets.later.length
@@ -3833,13 +3758,13 @@ function MarketerFollowUpCenter({
               : "Agamikal ba next diner jonno ekhono kono task save kora hoyni."}
         </p>
       </div>
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+      <div className="mt-5 grid gap-5 xl:grid-cols-2">
         {panels.map((panel) => (
-          <div key={panel.title} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
+          <div key={panel.title} className="rounded-[20px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50/80 p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <h3 className={cn("text-sm font-black", panel.tone)}>{panel.title}</h3>
-                <p className="mt-1 text-xs font-semibold text-slate-500">{panel.helper}</p>
+                <h3 className={cn("text-[15px] font-bold", panel.tone)}>{panel.title}</h3>
+                <p className="mt-1 text-[13px] font-medium text-slate-600">{panel.helper}</p>
               </div>
               <span className="inline-flex min-w-7 items-center justify-center rounded-full bg-white px-2 py-0.5 text-xs font-black text-slate-700 shadow-sm">{panel.count}</span>
             </div>
@@ -3847,10 +3772,10 @@ function MarketerFollowUpCenter({
               {loading ? (
                 <p className="rounded-xl bg-white p-3 text-xs font-semibold text-slate-400">Loading scheduled tasks...</p>
               ) : panel.rows.map((task) => (
-                <div key={`${panel.title}-${task.id}`} className="rounded-xl bg-white px-3 py-3 shadow-sm">
+                <div key={`${panel.title}-${task.id}`} className="rounded-[18px] border border-slate-100 bg-white px-4 py-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-100 hover:shadow-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-slate-900">{task.title}</p>
+                      <p className="truncate text-[15px] font-semibold text-slate-950">{task.title}</p>
                       <p className="mt-1 truncate text-sm font-semibold text-blue-700">
                         {task.companyHref ? <Link href={task.companyHref} className="hover:text-blue-800">{task.companyName}</Link> : task.companyName}
                       </p>
@@ -3864,7 +3789,7 @@ function MarketerFollowUpCenter({
                   </div>
                 </div>
               ))}
-              {!loading && !panel.rows.length ? <p className="rounded-xl bg-white p-3 text-xs font-semibold text-slate-400">{panel.empty}</p> : null}
+              {!loading && !panel.rows.length ? <p className="rounded-[18px] border border-slate-100 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">{panel.empty}</p> : null}
             </div>
           </div>
         ))}
@@ -3877,29 +3802,29 @@ function MarketerRecentActivities({ workspace }: { workspace: CrmWorkspace }) {
   return (
     <DashboardCard
       title="Recent Activities"
-      action={<Link href={rolePath("MARKETER", "communication")} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-50">View All <Eye className="h-4 w-4" /></Link>}
+      action={<Link href={rolePath("MARKETER", "communication")} className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-blue-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:shadow-md">View All <Eye className="h-4 w-4" /></Link>}
     >
-      <div className="space-y-2">
+      <div className="relative space-y-3 before:absolute before:bottom-4 before:left-5 before:top-4 before:w-px before:bg-slate-200">
         {workspace.activities.slice(0, 5).map((item) => {
           const activity = marketerActivityIcon(item.title, item.detail);
           const Icon = activity.icon;
 
           return (
-            <div key={item.id} className="flex items-start justify-between gap-4 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+            <div key={item.id} className="relative flex items-start justify-between gap-4 rounded-[18px] border border-slate-100 bg-white px-4 py-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-100 hover:bg-blue-50/30 hover:shadow-md">
               <div className="flex min-w-0 items-start gap-3">
-                <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl", activity.tone)}>
+                <div className={cn("relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white shadow-sm", activity.tone)}>
                   <Icon className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-slate-950">
-                    <EntityLink href={item.href} className="font-black">{item.title}</EntityLink>
+                  <p className="truncate text-[15px] font-semibold text-slate-950">
+                    <EntityLink href={item.href} className="font-semibold">{item.title}</EntityLink>
                   </p>
-                  <p className="mt-1 truncate text-sm text-slate-500">{item.detail}</p>
+                  <p className="mt-1 truncate text-[13px] font-medium text-slate-600">{item.detail}</p>
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-xs font-semibold text-slate-500">{item.time}</p>
-                <p className="mt-1 text-xs text-slate-400">by You</p>
+                <p className="text-xs font-semibold text-slate-600">{item.time}</p>
+                <p className="mt-1 text-xs font-medium text-slate-500">by You</p>
               </div>
             </div>
           );
@@ -3920,10 +3845,18 @@ export function MarketerDashboard({
   const greeting = useDashboardGreeting(workspace.user.name, "MARKETER");
 
   return (
-    <>
-      <PageHeader
-        title={greeting.title}
-      />
+    <div className="premium-dashboard-shell space-y-7">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+          <h1 className="text-[1.6rem] font-black tracking-normal text-slate-950 sm:text-2xl md:text-3xl">
+            {greeting.title}
+          </h1>
+          <p className="inline-flex w-fit max-w-full items-center gap-2.5 rounded-xl border border-dashed border-violet-300 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(245,243,255,0.92))] px-5 py-2.5 text-[15px] font-black leading-6 text-violet-700 shadow-[0_12px_28px_rgba(124,58,237,0.12)] ring-4 ring-violet-100/70 sm:text-base">
+            <Sparkles className="h-5 w-5 shrink-0 text-amber-400" />
+            {greeting.message}
+          </p>
+        </div>
+      </div>
 
       <MarketerKpiGrid workspace={workspace} />
 
@@ -3931,7 +3864,7 @@ export function MarketerDashboard({
 
       <MarketerFollowUpCenter workspace={workspace} initialRows={initialTaskSnapshot?.upcomingTasks} />
       <MarketerRecentActivities workspace={workspace} />
-    </>
+    </div>
   );
 }
 

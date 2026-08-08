@@ -1899,7 +1899,6 @@ export async function completeTaskWithFollowUpAction(formData: FormData) {
         completedAt,
         completedById: user.id,
         isPrevious: false,
-        notes: notes ? normalizeText(notes) : null,
       },
     });
 

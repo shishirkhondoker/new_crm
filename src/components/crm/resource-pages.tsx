@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Award,
   ArrowLeft,
+  ArrowRight,
   CalendarClock,
   ChevronDown,
   Check,
@@ -21,6 +22,7 @@ import {
   FileDown,
   FileText,
   Mail,
+  ListChecks,
   MessageSquare,
   MoreHorizontal,
   Building2,
@@ -1044,26 +1046,47 @@ function StepNotesHistoryPanel({
   emptyMessage?: string;
   compact?: boolean;
 }) {
-  const noteEntries = (entries ?? []).filter((entry) => entry.note && entry.note !== "-");
+  const noteEntries = React.useMemo(
+    () => (entries ?? []).filter((entry) => entry.note && entry.note !== "-"),
+    [entries],
+  );
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!compact) return;
+    const node = scrollRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [compact, noteEntries.length]);
 
   return (
-    <div className="min-w-0 self-start rounded-[20px] border border-emerald-200/80 bg-emerald-50/75 px-3 py-2.5">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">{title}</p>
+    <div className="min-w-0 self-start rounded-[18px] border border-emerald-200/80 bg-[linear-gradient(135deg,rgba(236,253,245,0.98),rgba(255,255,255,0.94))] px-4 py-4 shadow-[0_14px_34px_rgba(16,185,129,0.08)]">
+      <div className="flex items-center gap-2">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-emerald-100 text-emerald-700">
+          <ListChecks className="h-3.5 w-3.5" />
+        </span>
+        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700">{title}</p>
+      </div>
       {noteEntries.length ? (
-        <div className={cn("mt-2 space-y-1.5", compact ? "max-h-28 overflow-y-auto pr-1" : "max-h-44 overflow-y-auto pr-1")}>
+        <div ref={scrollRef} className={cn("mt-3 space-y-0 overflow-y-auto pr-1", compact ? "max-h-[126px]" : "max-h-44")}>
           {noteEntries.map((entry, index) => (
-            <div key={entry.id} className={cn("rounded-lg border border-white/80 bg-white/80 px-2.5 py-2", index === noteEntries.length - 1 ? "" : "shadow-[0_1px_2px_rgba(15,23,42,0.03)]")}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700">{entry.stepLabel}</p>
-                <p className="text-[10px] font-semibold text-emerald-800/80">{entry.createdAtLabel}</p>
+            <div key={entry.id} className="relative grid grid-cols-[14px_minmax(0,1fr)] gap-3 pb-3 last:pb-0">
+              <div className="relative flex justify-center">
+                <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" />
+                {index !== noteEntries.length - 1 ? <span className="absolute top-5 bottom-0 w-px bg-emerald-200" /> : null}
               </div>
-              <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-5 text-slate-700">{entry.note}</p>
-              {entry.actorName ? <p className="mt-1 text-[10px] font-semibold text-slate-500">By {entry.actorName}</p> : null}
+              <div className="rounded-xl border border-white/90 bg-white/88 px-3 py-2.5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700">{entry.stepLabel}</p>
+                  <p className="text-[10px] font-semibold text-emerald-800/80">{entry.createdAtLabel}</p>
+                </div>
+                <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-5 text-slate-700">{entry.note}</p>
+              </div>
             </div>
           ))}
         </div>
       ) : (
-        <p className="mt-2 text-[13px] leading-5 text-slate-500">{emptyMessage}</p>
+        <p className="mt-3 text-[13px] leading-5 text-slate-500">{emptyMessage}</p>
       )}
     </div>
   );
@@ -1095,17 +1118,16 @@ function TaskNoteHistoryPanel({
   if (!combinedEntries.length) return null;
 
   return (
-    <div className="min-w-0 self-start rounded-[20px] border border-emerald-200/80 bg-emerald-50/75 px-3 py-2.5">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Notes History</p>
+    <div className="min-w-0 self-start rounded-[18px] border border-emerald-200/80 bg-[linear-gradient(135deg,rgba(236,253,245,0.95),rgba(255,255,255,0.92))] px-4 py-4 shadow-[0_10px_28px_rgba(16,185,129,0.08)]">
+      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700">Notes History</p>
       <div className={cn("mt-2 space-y-1.5", compact ? "max-h-36 overflow-y-auto pr-1" : "max-h-44 overflow-y-auto pr-1")}>
         {combinedEntries.map((entry, index) => (
-          <div key={`${entry.id}-${index}`} className="rounded-lg border border-white/80 bg-white/80 px-2.5 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+          <div key={`${entry.id}-${index}`} className="rounded-xl border border-white/90 bg-white/85 px-3 py-2.5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700">{entry.stepLabel}</p>
               <p className="text-[10px] font-semibold text-emerald-800/80">{entry.createdAtLabel}</p>
             </div>
             <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-5 text-slate-700">{entry.note}</p>
-            {entry.actorName ? <p className="mt-1 text-[10px] font-semibold text-slate-500">By {entry.actorName}</p> : null}
           </div>
         ))}
       </div>
@@ -4037,7 +4059,7 @@ function LeadRowActions({
   );
 }
 
-export function LeadsPage({ workspace }: { role: Role; workspace: CrmWorkspace }) {
+export function LeadsPage({ workspace, previewMarketerId }: { role: Role; workspace: CrmWorkspace; previewMarketerId?: string }) {
   const viewerRole = workspace.user.role;
   const { refreshLeadCount } = useTaskCounterContext();
   const [open, setOpen] = React.useState(false);
@@ -4090,6 +4112,7 @@ export function LeadsPage({ workspace }: { role: Role; workspace: CrmWorkspace }
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (priorityFilter !== "all") params.set("priority", priorityFilter);
       if (assignedToId !== "all") params.set("assignedToId", assignedToId);
+      if (previewMarketerId) params.set("previewMarketerId", previewMarketerId);
 
       const response = await fetch(`/api/leads?${params.toString()}`, { cache: "no-store" });
       const result = await response.json();
@@ -4106,7 +4129,7 @@ export function LeadsPage({ workspace }: { role: Role; workspace: CrmWorkspace }
     } finally {
       setLoading(false);
     }
-  }, [assignedToId, page, priorityFilter, search, statusFilter]);
+  }, [assignedToId, page, previewMarketerId, priorityFilter, search, statusFilter]);
 
   React.useEffect(() => {
     void refreshLeads();
@@ -5290,7 +5313,7 @@ function BulkCustomerAssignModal({
   );
 }
 
-export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmWorkspace }) {
+export function CustomersPage({ role, workspace, previewMarketerId }: { role: Role; workspace: CrmWorkspace; previewMarketerId?: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -5313,6 +5336,10 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
   const [selectedCustomerIds, setSelectedCustomerIds] = React.useState<string[]>([]);
   const [tableSearch, setTableSearch] = React.useState("");
   const [visibleCustomers, setVisibleCustomers] = React.useState<CompanyRow[]>(() => workspace.companies);
+  const [pageCustomers, setPageCustomers] = React.useState<CompanyRow[]>(() => workspace.companies.slice(0, 10));
+  const [bulkAction, setBulkAction] = React.useState<"delete" | "park" | null>(null);
+  const [bulkProcessing, setBulkProcessing] = React.useState(false);
+  const [bulkError, setBulkError] = React.useState("");
   const [filters, setFilters] = React.useState({
     search: "",
     city: "",
@@ -5321,6 +5348,12 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
   });
   const ownerOptions = React.useMemo(() => getCustomerOwnerOptions(workspace, role), [role, workspace]);
   const selectedCount = selectedCustomerIds.length;
+  const pageCustomerIds = React.useMemo(() => pageCustomers.map((customer) => customer.id), [pageCustomers]);
+  const allPageCustomersSelected = pageCustomerIds.length > 0 && pageCustomerIds.every((id) => selectedCustomerIds.includes(id));
+  const selectedCustomers = React.useMemo(
+    () => customers.filter((customer) => selectedCustomerIds.includes(customer.id)),
+    [customers, selectedCustomerIds],
+  );
   const defaultImportOwnerId = role === "MARKETER"
     ? (workspace.user.id ?? "")
     : filters.assignedToId !== "all"
@@ -5335,6 +5368,7 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
     if (filters.city.trim()) params.set("city", filters.city.trim());
     if (filters.industry.trim()) params.set("industry", filters.industry.trim());
     if (filters.assignedToId && filters.assignedToId !== "all") params.set("assignedToId", filters.assignedToId);
+    if (previewMarketerId) params.set("previewMarketerId", previewMarketerId);
 
     const response = await fetch(`/api/customers?${params.toString()}`, { cache: "no-store" });
     const result = await response.json();
@@ -5350,7 +5384,7 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
     setViewCustomer((current) => current ? rows.find((item) => item.id === current.id) ?? null : null);
     setEditCustomer((current) => current ? rows.find((item) => item.id === current.id) ?? null : null);
     setDeleteCustomer((current) => current ? rows.find((item) => item.id === current.id) ?? null : null);
-  }, [filters.assignedToId, filters.city, filters.industry, filters.search]);
+  }, [filters.assignedToId, filters.city, filters.industry, filters.search, previewMarketerId]);
 
   const handleViewCustomer = React.useCallback((customer: CompanyRow) => {
     setViewCustomer(customer);
@@ -5385,11 +5419,14 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
   const columns = React.useMemo<ColumnDef<CompanyRow>[]>(
     () => {
       const baseColumns: ColumnDef<CompanyRow>[] = [
-        ...(role !== "MARKETER"
-          ? [{
-              id: "selectCustomer",
-              header: "Select",
-              cell: ({ row }: { row: { original: CompanyRow } }) => (
+        {
+          id: "serial",
+          header: "No.",
+          enableSorting: false,
+          cell: ({ row }) => {
+            const serial = customers.findIndex((customer) => customer.id === row.original.id) + 1;
+            return (
+              <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
                   checked={selectedCustomerIds.includes(row.original.id)}
@@ -5398,9 +5435,11 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
                   className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   aria-label={`Select ${row.original.name}`}
                 />
-              ),
-            } satisfies ColumnDef<CompanyRow>]
-          : []),
+                <span className="min-w-6 text-sm font-black text-slate-700">{serial || "-"}</span>
+              </div>
+            );
+          },
+        },
         {
           accessorKey: "name",
           header: "Company Name",
@@ -5468,13 +5507,14 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
 
       return baseColumns;
     },
-    [handleViewCustomer, handleDeleteCustomer, handleEditCustomer, role, selectedCustomerIds, toggleCustomerSelection],
+    [customers, handleViewCustomer, handleDeleteCustomer, handleEditCustomer, role, selectedCustomerIds, toggleCustomerSelection],
   );
 
   React.useEffect(() => {
     setCustomers(workspace.companies);
     setFilteredCount(workspace.companies.length);
     setVisibleCustomers(workspace.companies);
+    setPageCustomers(workspace.companies.slice(0, 10));
   }, [workspace.companies]);
 
   React.useEffect(() => {
@@ -5507,6 +5547,20 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
   React.useEffect(() => {
     setSelectedCustomerIds((current) => current.filter((id) => visibleCustomers.some((customer) => customer.id === id)));
   }, [visibleCustomers]);
+
+  const toggleSelectAllPageCustomers = React.useCallback(() => {
+    setSelectedCustomerIds((current) => {
+      if (allPageCustomersSelected) {
+        return current.filter((id) => !pageCustomerIds.includes(id));
+      }
+
+      const next = new Set(current);
+      for (const id of pageCustomerIds) {
+        next.add(id);
+      }
+      return Array.from(next);
+    });
+  }, [allPageCustomersSelected, pageCustomerIds]);
 
   React.useEffect(() => {
     const editCustomerId = searchParams.get("editCustomerId")?.trim();
@@ -5626,6 +5680,90 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
       setDeleteError(error instanceof Error ? error.message : "Customer delete failed.");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    if (!selectedCustomerIds.length) return;
+
+    setBulkProcessing(true);
+    setBulkError("");
+
+    try {
+      const failed: string[] = [];
+      for (const customer of selectedCustomers) {
+        const response = await fetch(`/api/customers/${customer.id}`, { method: "DELETE" });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          failed.push(typeof result.message === "string" ? `${customer.name}: ${result.message}` : customer.name);
+        }
+      }
+
+      if (failed.length) {
+        throw new Error(failed.slice(0, 2).join(" | "));
+      }
+
+      setCustomers((prev) => prev.filter((customer) => !selectedCustomerIds.includes(customer.id)));
+      setSelectedCustomerIds([]);
+      setBulkAction(null);
+      setFeedback({
+        type: "success",
+        title: "Customers deleted",
+        message: `${selectedCustomers.length} customer${selectedCustomers.length === 1 ? "" : "s"} deleted successfully.`,
+      });
+      await refreshCustomers();
+      router.refresh();
+    } catch (error) {
+      setBulkError(error instanceof Error ? error.message : "Selected customers delete failed.");
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkParkConfirm = async () => {
+    if (!selectedCustomerIds.length) return;
+
+    setBulkProcessing(true);
+    setBulkError("");
+
+    try {
+      const until = new Date();
+      until.setFullYear(until.getFullYear() + 1);
+      const failed: string[] = [];
+
+      for (const customer of selectedCustomers) {
+        const response = await fetch(`/api/customers/${customer.id}/park`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            until: until.toISOString(),
+            note: "Moved to Cold Customers from bulk selection.",
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          failed.push(typeof result.message === "string" ? `${customer.name}: ${result.message}` : customer.name);
+        }
+      }
+
+      if (failed.length) {
+        throw new Error(failed.slice(0, 2).join(" | "));
+      }
+
+      setCustomers((prev) => prev.filter((customer) => !selectedCustomerIds.includes(customer.id)));
+      setSelectedCustomerIds([]);
+      setBulkAction(null);
+      setFeedback({
+        type: "success",
+        title: "Moved to Cold Customers",
+        message: `${selectedCustomers.length} customer${selectedCustomers.length === 1 ? "" : "s"} moved successfully.`,
+      });
+      await refreshCustomers();
+      router.refresh();
+    } catch (error) {
+      setBulkError(error instanceof Error ? error.message : "Selected customers move failed.");
+    } finally {
+      setBulkProcessing(false);
     }
   };
 
@@ -5773,6 +5911,76 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
           ) : null}
         </div>
       </div>
+      <div
+        className={cn(
+          "mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 shadow-sm transition-colors",
+          selectedCount ? "border-blue-200 bg-blue-50/60" : "border-slate-200 bg-white",
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <span className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+            selectedCount ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500",
+          )}>
+            <ListChecks className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-black text-slate-950">
+              {selectedCount ? `${selectedCount} customer${selectedCount === 1 ? "" : "s"} selected` : "Select customers"}
+            </p>
+            <p className="mt-0.5 text-xs font-semibold text-slate-500">
+              Use "Select All" to pick every customer on this page, then delete or move them to Cold Customers together.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!pageCustomers.length}
+            onClick={toggleSelectAllPageCustomers}
+          >
+            <ListChecks className="h-4 w-4" />
+            {allPageCustomersSelected ? "Unselect Page" : "Select All"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!selectedCount}
+            onClick={() => setSelectedCustomerIds([])}
+          >
+            Clear
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!selectedCount}
+            onClick={() => {
+              setBulkError("");
+              setBulkAction("park");
+            }}
+          >
+            <Snowflake className="h-4 w-4" />
+            Move to Cold Customers
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            disabled={!selectedCount}
+            onClick={() => {
+              setBulkError("");
+              setBulkAction("delete");
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </Button>
+        </div>
+      </div>
       {role !== "MARKETER" ? (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <div>
@@ -5796,15 +6004,6 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
             </Button>
             <Button
               type="button"
-              variant="outline"
-              size="sm"
-              disabled={!selectedCount}
-              onClick={() => setSelectedCustomerIds([])}
-            >
-              Clear Selection
-            </Button>
-            <Button
-              type="button"
               size="sm"
               disabled={!selectedCount || ownerOptions.length === 0}
               onClick={() => setBulkAssignOpen(true)}
@@ -5822,6 +6021,7 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
         globalFilterValue={tableSearch}
         onGlobalFilterValueChange={setTableSearch}
         onVisibleRowsChange={setVisibleCustomers}
+        onPageRowsChange={setPageCustomers}
         onRowClick={handleViewCustomer}
       />
       <FormModal open={open} title="Create Customer / Company" onClose={() => setOpen(false)}>
@@ -5902,6 +6102,48 @@ export function CustomersPage({ role, workspace }: { role: Role; workspace: CrmW
             </div>
           </div>
         ) : null}
+      </FormModal>
+      <FormModal
+        open={bulkAction === "delete"}
+        title="Delete Selected Customers"
+        onClose={() => !bulkProcessing && setBulkAction(null)}
+        panelClassName="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700">
+            Are you sure you want to delete {selectedCount} selected customer{selectedCount === 1 ? "" : "s"}?
+          </p>
+          {bulkError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{bulkError}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="destructive" onClick={handleBulkDeleteConfirm} disabled={bulkProcessing || !selectedCount}>
+              {bulkProcessing ? "Deleting..." : "Delete Selected"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setBulkAction(null)} disabled={bulkProcessing}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </FormModal>
+      <FormModal
+        open={bulkAction === "park"}
+        title="Move Selected to Cold Customers"
+        onClose={() => !bulkProcessing && setBulkAction(null)}
+        panelClassName="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700">
+            Move {selectedCount} selected customer{selectedCount === 1 ? "" : "s"} to Cold Customers? They will be hidden from the main list.
+          </p>
+          {bulkError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{bulkError}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={handleBulkParkConfirm} disabled={bulkProcessing || !selectedCount}>
+              {bulkProcessing ? "Moving..." : "Move Selected"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setBulkAction(null)} disabled={bulkProcessing}>
+              Cancel
+            </Button>
+          </div>
+        </div>
       </FormModal>
     </>
   );
@@ -6072,12 +6314,20 @@ export function MarketerDashboardPreviewPanel({
   role,
   marketerId,
   marketerName,
-  children,
+  workspace,
+  initialActiveTasks,
+  initialCompletedTasks,
+  followUpPage,
+  dashboardContent,
 }: {
   role: Role;
   marketerId: string;
   marketerName: string;
-  children: React.ReactNode;
+  workspace: CrmWorkspace;
+  initialActiveTasks: TodayWorkQueueItem[];
+  initialCompletedTasks: CompletedWorkItem[];
+  followUpPage: FollowUpPageData;
+  dashboardContent: React.ReactNode;
 }) {
   const [message, setMessage] = React.useState("");
   const [sending, setSending] = React.useState(false);
@@ -6143,12 +6393,43 @@ export function MarketerDashboardPreviewPanel({
         Back to Dashboard
       </Link>
       <PageHeader
-        title={`${marketerName}'s Dashboard`}
+        title={`${marketerName}'s Workspace`}
         description="Read-only preview — actions here won't affect real data. Use it to review work and send a suggestion below."
       />
-      <div className="pointer-events-none select-none">
-        {children}
-      </div>
+      <Tabs
+        tabs={[
+          { label: "Dashboard", value: "dashboard" },
+          { label: "Tasks", value: "tasks" },
+          { label: "Follow-ups", value: "followups" },
+          { label: "Customers", value: "customers" },
+          { label: "Leads", value: "leads" },
+          { label: "Communication", value: "communication" },
+          { label: "Reports", value: "reports" },
+          { label: "Rewards", value: "rewards" },
+        ]}
+        defaultValue="dashboard"
+      >
+        {(tab) => (
+          <div className="pointer-events-none select-none">
+            {tab === "dashboard" ? dashboardContent : null}
+            {tab === "tasks" ? (
+              <TasksPage
+                role="MARKETER"
+                workspace={workspace}
+                initialActiveTasks={initialActiveTasks}
+                initialCompletedTasks={initialCompletedTasks}
+                previewMarketerId={marketerId}
+              />
+            ) : null}
+            {tab === "followups" ? <FollowUpsPage workspace={workspace} followUpPage={followUpPage} /> : null}
+            {tab === "customers" ? <CustomersPage role="MARKETER" workspace={workspace} previewMarketerId={marketerId} /> : null}
+            {tab === "leads" ? <LeadsPage role="MARKETER" workspace={workspace} previewMarketerId={marketerId} /> : null}
+            {tab === "communication" ? <CommunicationPage workspace={workspace} initialActivityQuery="" initialCustomerQuery="" /> : null}
+            {tab === "reports" ? <ReportsPage workspace={workspace} /> : null}
+            {tab === "rewards" ? <RewardsPage role="MARKETER" workspace={workspace} /> : null}
+          </div>
+        )}
+      </Tabs>
       <DashboardCard title="Send Suggestion">
         <div className="space-y-3">
           <textarea
@@ -6737,16 +7018,17 @@ function resolveTaskContentSnapshot(input: {
   method?: string | null;
   linkedTaskDescription?: string | null;
   linkedTaskNotes?: string | null;
+  linkedTaskTitle?: string | null;
 }) {
   const details = input.sourceType === "FOLLOW_UP"
-    ? meaningfulTaskText(input.linkedTaskDescription) ?? meaningfulTaskText(input.description) ?? meaningfulTaskText(input.method)
+    ? meaningfulTaskText(input.linkedTaskDescription)
     : meaningfulTaskText(input.description) ?? meaningfulTaskText(input.method);
   const note = input.sourceType === "FOLLOW_UP"
     ? meaningfulTaskText(input.linkedTaskNotes) ?? meaningfulTaskText(input.notes)
     : meaningfulTaskText(input.notes);
 
   return {
-    details: details ?? "-",
+    details: details ?? (input.sourceType === "FOLLOW_UP" ? "No task detail saved yet." : "-"),
     note,
   };
 }
@@ -6795,18 +7077,29 @@ const CRM_PIPELINE_STEPS: CrmPipelineStep[] = ["Call", "Follow-up", "Demo Send",
 function normalizeCrmPipelineStep(value?: string | null): CrmPipelineStep | null {
   const normalized = value?.trim().toLowerCase();
   if (!normalized) return null;
-  if (normalized === "call" || normalized === "phone call") return "Call";
-  if (normalized === "follow-up" || normalized === "follow up") return "Follow-up";
-  if (normalized === "demo send" || normalized === "demo") return "Demo Send";
-  if (normalized === "quotation" || normalized === "quote" || normalized === "quatation") return "Quotation";
-  if (normalized === "sale" || normalized === "sale won" || normalized === "won" || normalized === "conversion") return "Sale Won";
-  if (normalized === "lead lost" || normalized === "lost") return "Lead Lost";
+  if (normalized.includes("lead lost") || normalized.includes("lost")) return "Lead Lost";
+  if (normalized.includes("sale won") || normalized.includes("won sale") || normalized.includes("conversion") || normalized.includes("win")) return "Sale Won";
+  if (normalized.includes("quotation") || normalized.includes("quote") || normalized.includes("quatation")) return "Quotation";
+  if (normalized.includes("demo send") || normalized.includes("demo")) return "Demo Send";
+  if (normalized.includes("follow-up") || normalized.includes("follow up") || normalized.includes("followup")) return "Follow-up";
+  if (normalized.includes("phone call") || normalized.includes("call")) return "Call";
   return null;
 }
 
 function shouldHidePipelineTitle(title?: string | null, currentStep?: CrmPipelineStep | null) {
   if (!title || !currentStep) return false;
   return normalizeCrmPipelineStep(title) === currentStep;
+}
+
+function resolveWorkQueuePipelineStep(task: TodayWorkQueueItem): CrmPipelineStep | null {
+  const latestStepNote = task.stepNotes.find((entry) => normalizeCrmPipelineStep(entry.stepLabel));
+
+  return (
+    normalizeCrmPipelineStep(latestStepNote?.stepLabel) ??
+    normalizeCrmPipelineStep(task.title) ??
+    normalizeCrmPipelineStep(task.method) ??
+    (task.sourceType === "FOLLOW_UP" ? "Follow-up" : null)
+  );
 }
 
 function defaultNextCrmPipelineStep(value?: string | null): CrmPipelineStep {
@@ -6832,14 +7125,12 @@ function CrmPipelineStrip({
   activeStep?: CrmPipelineStep | null;
   highlight?: boolean;
 }) {
-  const activeIndex = activeStep ? CRM_PIPELINE_STEPS.indexOf(activeStep) : -1;
   const isLost = activeStep === "Lead Lost";
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         {CRM_PIPELINE_STEPS.map((step, index) => {
-          const isReached = !isLost && activeIndex >= index;
           const isCurrent = !isLost && activeStep === step;
           return (
             <span
@@ -6850,9 +7141,7 @@ function CrmPipelineStrip({
                   ? highlight
                     ? "border-blue-300 bg-blue-100 text-blue-800 shadow-sm"
                     : "border-blue-200 bg-blue-50 text-blue-700"
-                  : isReached
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-slate-200 bg-white text-slate-500",
+                  : "border-slate-200 bg-white text-slate-500",
               )}
             >
               {step}
@@ -7729,7 +8018,7 @@ function TodayWorkFilterChips({
   ];
 
   return (
-    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+    <div className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:mb-4 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
       {filterChips.map((chip) => {
         const active = activeFilter === chip.key;
 
@@ -7739,12 +8028,12 @@ function TodayWorkFilterChips({
             type="button"
             onClick={() => onChange(chip.key)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition",
-              active ? "border-blue-200 bg-blue-50 text-blue-700 shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-blue-100 hover:text-slate-700",
+              "inline-flex items-center gap-1.5 rounded-full border px-4 py-2.5 text-[13px] font-semibold transition-all duration-300",
+              active ? "border-transparent bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)]" : "border-slate-200 bg-slate-50 text-slate-700 shadow-sm hover:-translate-y-0.5 hover:border-blue-100 hover:bg-white hover:text-blue-700 hover:shadow-md",
             )}
           >
             {chip.label}
-            <span className={cn("rounded-full px-1.5 py-0.5 text-[11px]", active ? "bg-white text-blue-700" : "bg-slate-100 text-slate-500")}>
+            <span className={cn("rounded-full px-1.5 py-0.5 text-[11px]", active ? "bg-white/95 text-blue-700" : "bg-white text-slate-600")}>
               {counts[chip.key]}
             </span>
           </button>
@@ -7824,24 +8113,15 @@ export function TodayWorkQueueList({
   }
 
   return (
-    <div ref={listRef} className={cn("space-y-2 overflow-x-hidden overflow-y-auto pr-1", maxHeightClassName)}>
+    <div ref={listRef} className={cn("space-y-4 overflow-x-hidden overflow-y-auto pr-1", maxHeightClassName)}>
       <AnimatePresence initial={false}>
         {rows.map((task) => {
-          const crmStep = normalizeCrmPipelineStep(task.title) ?? (task.sourceType === "FOLLOW_UP" ? "Follow-up" : null);
+          const crmStep = resolveWorkQueuePipelineStep(task);
           const hideTaskTitle = shouldHidePipelineTitle(task.title, crmStep);
           const taskTimestamp = new Date(task.taskDateIso).getTime();
           const isLiveFollowUp = task.sourceType === "FOLLOW_UP" && task.queueType === "DUE_FOLLOW_UP" && Number.isFinite(taskTimestamp) && taskTimestamp <= Date.now();
           const isUpcomingFollowUp = task.sourceType === "FOLLOW_UP" && task.queueType === "DUE_FOLLOW_UP" && Number.isFinite(taskTimestamp) && taskTimestamp > Date.now();
-          const isFollowUpStep = crmStep === "Follow-up" || task.sourceType === "FOLLOW_UP" || task.isDueFollowUp;
-          const showScheduledTime = viewerRole !== "MARKETER" || isFollowUpStep;
-          const stageBadgeTone = crmStep === "Follow-up"
-            ? isLiveFollowUp
-              ? "border-orange-300 bg-orange-100 text-orange-800 shadow-sm"
-              : "border-amber-200 bg-amber-50 text-amber-700"
-            : crmStep === "Call"
-              ? "border-sky-200 bg-sky-50 text-sky-700"
-              : "border-slate-200 bg-slate-50 text-slate-700";
-
+          const communicationStepNotes = task.stepNotes.filter((entry) => entry.source === "COMMUNICATION");
           return (
           <motion.div
             key={task.id}
@@ -7862,189 +8142,168 @@ export function TodayWorkQueueList({
               }
             }}
             className={cn(
-              "overflow-hidden rounded-[18px] border px-3.5 py-3 shadow-[0_8px_22px_rgba(15,23,42,0.045)] transition hover:shadow-[0_12px_28px_rgba(15,23,42,0.07)]",
+              "relative overflow-hidden rounded-[18px] border px-4 py-4 shadow-[0_14px_36px_rgba(15,23,42,0.055)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_54px_rgba(15,23,42,0.095)] sm:px-5 sm:py-5",
               onOpen && "cursor-pointer",
               task.queueType === "OVERDUE" || task.queueType === "CARRY_FORWARD"
-                ? "border-rose-200 bg-gradient-to-br from-rose-50 to-white ring-1 ring-rose-100"
+                ? "border-rose-200 bg-gradient-to-br from-rose-50 via-white to-white ring-1 ring-rose-100"
                 : isLiveFollowUp
                   ? "border-orange-300 bg-gradient-to-br from-orange-50 via-amber-50 to-white ring-2 ring-orange-100"
                 : task.queueType === "DUE_FOLLOW_UP"
-                  ? "border-amber-200 bg-gradient-to-br from-amber-50 to-white ring-1 ring-amber-100"
+                  ? "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white ring-1 ring-amber-100"
                   : task.priorityKey === "IMPORTANT"
-                    ? "border-sky-200 bg-gradient-to-br from-sky-50 to-white ring-1 ring-sky-100"
-                    : "border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-cyan-50/65 ring-1 ring-blue-50",
+                    ? "border-sky-200 bg-gradient-to-br from-sky-50 via-white to-cyan-50/50 ring-1 ring-sky-100"
+                    : "border-blue-200 bg-[linear-gradient(135deg,rgba(239,246,255,0.96)_0%,rgba(255,255,255,0.98)_48%,rgba(240,253,250,0.82)_100%)] ring-1 ring-blue-100/80",
             )}
           >
-            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-2.5">
-              {!readOnly ? (
-                <input
-                  type="checkbox"
-                  checked={false}
-                  onClick={(event) => event.stopPropagation()}
-                  onChange={() => onComplete(task)}
-                  className="mt-2.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  aria-label={`Complete ${task.title}`}
-                />
-              ) : null}
-              <MiniAvatar label={task.companyName || task.title} />
-              <div className="min-w-0 flex-1">
-                <div className="space-y-0.5">
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    {!hideTaskTitle ? (
-                      <button type="button" onClick={(event) => {
-                        event.stopPropagation();
-                        onOpen?.(task);
-                      }} className="truncate text-left text-base font-black text-slate-900 hover:text-blue-700">
-                        {task.title}
-                      </button>
-                    ) : <div />}
-                    {showScheduledTime ? (
-                      <div className={cn(
-                        "self-start rounded-xl border px-2.5 py-1.5 text-left sm:shrink-0 sm:text-right",
-                        isLiveFollowUp
-                          ? "border-orange-300 bg-orange-100 text-orange-900 shadow-sm"
-                          : task.queueType === "OVERDUE"
-                            ? "border-rose-200 bg-rose-50 text-rose-800"
-                            : task.queueType === "DUE_FOLLOW_UP"
-                              ? "border-amber-200 bg-white text-amber-800"
-                              : "border-slate-200 bg-slate-50 text-slate-700",
-                      )}>
-                        {task.timeLabel ? <p className="text-xs font-black">{task.timeLabel}</p> : null}
-                        <p className={cn(task.timeLabel ? "mt-0.5" : "mt-0", "text-[10px] font-semibold", isLiveFollowUp ? "text-orange-700" : "text-slate-500")}>{task.taskDateLabel}</p>
-                        {isLiveFollowUp ? <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-orange-700">Due now</p> : null}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-0.5">
-                    <p className="min-w-0 text-[15px] font-bold text-slate-700 sm:flex-1 sm:truncate">
-                        <EntityLink
-                          href={task.companyHref}
-                          className="text-[15px] font-bold text-slate-800"
-                          stopPropagation
-                          onNavigate={() => {
-                            if (typeof window === "undefined") return;
-                            const scrollTop = listRef.current?.scrollTop ?? 0;
-                            window.sessionStorage.setItem(scrollKey, JSON.stringify({ scrollTop, itemId: task.id }));
-                          }}
-                        >
-                          {task.companyName}
-                        </EntityLink>
-                    </p>
-                    <p className="min-w-0 break-all text-[12px] font-bold text-slate-600 sm:shrink-0 sm:text-[13px] sm:break-normal sm:whitespace-nowrap">
-                      {task.companyPrimaryPhone || "No phone number"}
-                    </p>
-                  </div>
-                  <p className="mt-1 text-[11px] font-semibold text-slate-500">Added: {task.assignedAtLabel}</p>
-                </div>
-                {crmStep ? (
-                  <div className="mt-2 space-y-1.5">
-                    <CrmPipelineStrip
-                      activeStep={crmStep}
-                      highlight={task.queueType === "DUE_FOLLOW_UP" || task.queueType === "OVERDUE" || task.priorityKey === "IMPORTANT"}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-400 via-blue-500 to-emerald-400" />
+            <div className="min-w-0 space-y-4">
+              <div className="grid gap-4 xl:grid-cols-[minmax(max-content,1fr)_auto] xl:items-start">
+                <div className="flex min-w-0 items-start gap-3">
+                  {!readOnly ? (
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={() => onComplete(task)}
+                      className="mt-2 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      aria-label={`Complete ${task.title}`}
                     />
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black", stageBadgeTone)}>
-                        Current step: {crmStep}
-                      </span>
+                  ) : null}
+                  <MiniAvatar label={task.companyName || task.title} />
+                  <div className="min-w-0">
+                    <button type="button" onClick={(event) => {
+                      event.stopPropagation();
+                      onOpen?.(task);
+                    }} className="block max-w-full whitespace-nowrap text-left text-[15px] font-black leading-tight text-slate-950 transition hover:text-blue-700 sm:text-base">
+                      {task.companyName}
+                    </button>
+                    {task.productName !== "-" ? (
+                      <p className="mt-1 whitespace-nowrap text-[12px] font-semibold text-blue-700">Product: {task.productName}</p>
+                    ) : null}
+                    {!hideTaskTitle ? (
+                      <p className="mt-1 truncate text-[12px] font-semibold text-slate-600">{task.title}</p>
+                    ) : null}
+                    <div className="mt-1 flex flex-wrap items-center gap-2 xl:hidden">
+                      <p className="text-[11px] font-medium text-slate-500">Added: {task.assignedAtLabel}</p>
                       {isLiveFollowUp ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-orange-300 bg-orange-100 px-2 py-0.5 text-[10px] font-black text-orange-800 shadow-sm">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[10px] font-black text-orange-700 shadow-sm">
                           <Clock3 className="h-3 w-3" />
-                          Live follow-up now
+                          Due follow-up now
                         </span>
                       ) : null}
                       {isUpcomingFollowUp ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-black text-amber-700 shadow-sm">
                           <Clock3 className="h-3 w-3" />
                           Upcoming follow-up
                         </span>
                       ) : null}
                     </div>
                   </div>
-                ) : null}
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  <span className="truncate text-[11px] font-semibold text-slate-600">{task.method}</span>
-                  {task.productName !== "-" ? <span className="truncate text-[11px] font-semibold text-blue-700">Product: {task.productName}</span> : null}
-                  {task.reminder !== "-" ? <span className="truncate text-[11px] font-semibold text-violet-700">Reminder: {taskReminderLabel(task.reminder)}</span> : null}
-                  {viewerRole !== "MARKETER" ? <span className="truncate text-[11px] font-semibold text-slate-500">Assigned: {task.assignedTo}</span> : null}
-                  <Badge
-                    variant={task.queueType === "OVERDUE" ? "danger" : task.queueType === "DUE_FOLLOW_UP" ? "warning" : "default"}
-                    className="px-2 py-0.5 text-[10px] font-bold"
-                  >
-                    {task.queueLabel}
-                  </Badge>
-                  <TaskPriorityBadge priority={task.priorityKey} />
                 </div>
-                <div className={cn("mt-2 grid items-start gap-2", task.stepNotes.length ? "md:grid-cols-2" : "grid-cols-1")}>
+                <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap xl:justify-end">
+                  <TaskPriorityBadge priority={task.priorityKey} />
+                  {!readOnly ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8 rounded-xl px-3 text-[11px] shadow-sm"
+                        disabled={Boolean(activeItemId && activeItemId === task.id)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onComplete(task);
+                        }}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Complete
+                      </Button>
+                      {task.sourceType === "TASK" ? (
+                        <>
+                          <Button type="button" size="sm" variant="outline" className="h-8 rounded-xl px-3 text-[11px]" onClick={(event) => {
+                            event.stopPropagation();
+                            onEdit?.(toEditableTaskRow(task));
+                          }}>
+                            <Edit className="h-3.5 w-3.5" />
+                            Edit
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" className="h-8 rounded-xl px-3 text-[11px] text-red-600" onClick={(event) => {
+                            event.stopPropagation();
+                            onDelete?.(toEditableTaskRow(task));
+                          }}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </Button>
+                        </>
+                      ) : task.sourceType === "FOLLOW_UP" ? (
+                        <>
+                          <Button type="button" size="sm" variant="outline" className="h-8 rounded-xl px-3 text-[11px]" onClick={(event) => {
+                            event.stopPropagation();
+                            onEditFollowUp?.(task);
+                          }}>
+                            <Edit className="h-3.5 w-3.5" />
+                            Edit
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" className="h-8 rounded-xl px-3 text-[11px] text-red-600" onClick={(event) => {
+                            event.stopPropagation();
+                            onDeleteFollowUp?.(task);
+                          }}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </Button>
+                        </>
+                      ) : null}
+                    </>
+                  ) : null}
+                  <InlineContactShortcuts
+                    phone={task.companyPrimaryPhone}
+                    whatsapp={task.companyPrimaryPhone}
+                    className="contents sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-start xl:flex-nowrap [&>a]:h-8 [&>a]:rounded-xl [&>a]:px-3 [&>a]:text-[11px]"
+                  />
+                  <div className="hidden w-full flex-wrap items-center justify-end gap-2 xl:flex">
+                    <p className="text-[11px] font-medium text-slate-500">Added: {task.assignedAtLabel}</p>
+                    {isLiveFollowUp ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[10px] font-black text-orange-700 shadow-sm">
+                        <Clock3 className="h-3 w-3" />
+                        Due follow-up now
+                      </span>
+                    ) : null}
+                    {isUpcomingFollowUp ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-black text-amber-700 shadow-sm">
+                        <Clock3 className="h-3 w-3" />
+                        Upcoming follow-up
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                {crmStep ? (
+                  <div className="min-w-0">
+                    <CrmPipelineStrip
+                      activeStep={crmStep}
+                      highlight={task.queueType === "DUE_FOLLOW_UP" || task.queueType === "OVERDUE" || task.priorityKey === "IMPORTANT"}
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              <div className={cn("grid items-start gap-4", communicationStepNotes.length ? "lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]" : "grid-cols-1")}>
                   {task.description !== "-" ? (
-                    <div className="self-start rounded-[20px] border border-slate-200/80 bg-white/80 px-3 py-2.5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Task Details</p>
-                      <p className="mt-1.5 max-h-24 overflow-y-auto whitespace-pre-wrap break-words pr-1 text-[13px] font-medium leading-5 text-slate-700">{task.description}</p>
+                    <div className="self-start rounded-[18px] border border-slate-200/80 bg-white/90 px-4 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Task Details</p>
+                      <p className="mt-2.5 max-h-28 overflow-y-auto whitespace-pre-wrap break-words pr-1 text-[15px] font-medium leading-6 text-slate-700">{task.description}</p>
                     </div>
                   ) : (
-                    <div className="self-start rounded-[20px] border border-slate-200/80 bg-white/80 px-3 py-2.5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Task Details</p>
-                      <p className="mt-1.5 max-h-16 overflow-y-auto whitespace-pre-wrap break-words pr-1 text-[13px] font-medium leading-5 text-slate-700">{task.method}</p>
+                    <div className="self-start rounded-[18px] border border-slate-200/80 bg-white/90 px-4 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Task Details</p>
+                      <p className="mt-2.5 max-h-20 overflow-y-auto whitespace-pre-wrap break-words pr-1 text-[15px] font-medium leading-6 text-slate-700">{task.method}</p>
                     </div>
                   )}
-                  {task.stepNotes.length ? (
-                    <StepNotesHistoryPanel entries={task.stepNotes} title="Step Notes" compact />
+                  {communicationStepNotes.length ? (
+                    <StepNotesHistoryPanel entries={communicationStepNotes} title="Short Notes" compact />
                   ) : null}
                 </div>
-              </div>
-              <div className="flex w-full shrink-0 flex-row flex-wrap items-center gap-1.5 sm:mt-0 sm:w-auto sm:flex-col sm:items-stretch">
-                {!readOnly ? (
-                  <>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="mt-0.5 h-7 rounded-lg px-2.5 text-[11px] shadow-sm"
-                      disabled={Boolean(activeItemId && activeItemId === task.id)}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onComplete(task);
-                      }}
-                    >
-                      Complete
-                    </Button>
-                    {task.sourceType === "TASK" ? (
-                      <>
-                        <Button type="button" size="sm" variant="outline" className="h-7 rounded-lg px-2.5 text-[11px]" onClick={(event) => {
-                          event.stopPropagation();
-                          onEdit?.(toEditableTaskRow(task));
-                        }}>
-                          Edit
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" className="h-7 rounded-lg px-2.5 text-[11px] text-red-600" onClick={(event) => {
-                          event.stopPropagation();
-                          onDelete?.(toEditableTaskRow(task));
-                        }}>
-                          Delete
-                        </Button>
-                      </>
-                    ) : task.sourceType === "FOLLOW_UP" ? (
-                      <>
-                        <Button type="button" size="sm" variant="outline" className="h-7 rounded-lg px-2.5 text-[11px]" onClick={(event) => {
-                          event.stopPropagation();
-                          onEditFollowUp?.(task);
-                        }}>
-                          Edit
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" className="h-7 rounded-lg px-2.5 text-[11px] text-red-600" onClick={(event) => {
-                          event.stopPropagation();
-                          onDeleteFollowUp?.(task);
-                        }}>
-                          Delete
-                        </Button>
-                      </>
-                    ) : null}
-                  </>
-                ) : null}
-                <InlineContactShortcuts
-                  phone={task.companyPrimaryPhone}
-                  whatsapp={task.companyPrimaryPhone}
-                  className="mt-1 w-full flex-row flex-wrap items-center justify-start sm:w-full sm:flex-col sm:items-stretch [&>a]:justify-center"
-                />
-              </div>
             </div>
           </motion.div>
         )})}
@@ -8130,13 +8389,12 @@ export function CompletedWorkList({
       >
         {rows.map((task, index) => {
           const isLatest = index === 0;
-          const crmStep = normalizeCrmPipelineStep(task.title) ?? (task.sourceType === "FOLLOW_UP" ? "Follow-up" : null);
+          const crmStep = resolveWorkQueuePipelineStep(task);
           const hideTaskTitle = shouldHidePipelineTitle(task.title, crmStep);
-          const hasPhoneNumber = Boolean(task.companyPrimaryPhone && task.companyPrimaryPhone !== "No phone number");
           const scheduledLabel = `${task.taskDateLabel}${task.timeLabel ? ` ${task.timeLabel}` : ""}`;
           const taskContent = resolveTaskContentSnapshot(task);
-          const filteredStepNotes = filterDuplicateStepNotes(task.stepNotes, taskContent.note);
-          const hasRightColumn = Boolean(taskContent.note) || filteredStepNotes.length > 0;
+          const communicationStepNotes = filterDuplicateStepNotes(task.stepNotes, taskContent.note).filter((entry) => entry.source === "COMMUNICATION");
+          const hasRightColumn = communicationStepNotes.length > 0;
           return (
           <div
             key={task.id}
@@ -8185,15 +8443,6 @@ export function CompletedWorkList({
                         {task.companyName}
                       </EntityLink>
                     </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-500">
-                      <span className={cn(
-                        "inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5",
-                        hasPhoneNumber ? "border-blue-100 bg-blue-50 text-blue-700" : "border-slate-200 bg-slate-50 text-slate-400",
-                      )}>
-                        <Phone className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{task.companyPrimaryPhone}</span>
-                      </span>
-                    </div>
                     <p className="mt-0.5 text-[11px] font-semibold text-emerald-700">Completed: {task.completedAtLabel}</p>
                   </div>
                   <button
@@ -8226,7 +8475,7 @@ export function CompletedWorkList({
                     <p className="mt-1.5 max-h-24 overflow-y-auto whitespace-pre-wrap break-words pr-1 text-[13px] leading-5 text-slate-700">{taskContent.details}</p>
                   </div>
                   {hasRightColumn ? (
-                    <TaskNoteHistoryPanel note={taskContent.note} entries={filteredStepNotes} compact />
+                    <StepNotesHistoryPanel entries={communicationStepNotes} title="Short Notes" compact />
                   ) : null}
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
@@ -8378,11 +8627,15 @@ function TodayTasksExecutionView({
   workspace,
   initialActiveTasks,
   initialCompletedTasks,
+  previewMarketerId,
+  mode = "all",
 }: {
   role: Role;
   workspace: TaskWorkspaceData;
   initialActiveTasks?: TodayWorkQueueItem[];
   initialCompletedTasks?: CompletedWorkItem[];
+  previewMarketerId?: string;
+  mode?: "all" | "active" | "completed";
 }) {
   const hasInitialRows = initialActiveTasks !== undefined && initialCompletedTasks !== undefined;
   const [open, setOpen] = React.useState(false);
@@ -8410,7 +8663,7 @@ function TodayTasksExecutionView({
     defaultMethod?: string;
   } | null>(null);
   const [activeFilter, setActiveFilter] = React.useState<TodayWorkFilter>("all");
-  const { refreshTaskCount } = useTaskCounterContext();
+  const { refreshTaskCount, refreshCompletedTaskCount } = useTaskCounterContext();
   const scheduledRefreshTimers = React.useRef<number[]>([]);
   const crmDayRefreshTimer = React.useRef<number | null>(null);
   const router = useRouter();
@@ -8438,9 +8691,10 @@ function TodayTasksExecutionView({
     setError("");
 
     try {
+      const previewSuffix = previewMarketerId ? `?previewMarketerId=${encodeURIComponent(previewMarketerId)}` : "";
       const [todayResponse, completedResponse] = await Promise.all([
-        fetch("/api/tasks/today", { cache: "no-store" }),
-        fetch("/api/tasks/completed", { cache: "no-store" }),
+        fetch(`/api/tasks/today${previewSuffix}`, { cache: "no-store" }),
+        fetch(`/api/tasks/completed${previewSuffix}`, { cache: "no-store" }),
       ]);
 
       const [todayResult, completedResult] = await Promise.all([
@@ -8463,7 +8717,7 @@ function TodayTasksExecutionView({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [previewMarketerId]);
 
   React.useEffect(() => {
     if (hasInitialRows) return;
@@ -8509,9 +8763,10 @@ function TodayTasksExecutionView({
       crmDayRefreshTimer.current = null;
       void loadTasks();
       void refreshTaskCount();
+      void refreshCompletedTaskCount();
       scheduleNextCrmDayRefresh();
     }, delay + 250);
-  }, [loadTasks, refreshTaskCount, role]);
+  }, [loadTasks, refreshCompletedTaskCount, refreshTaskCount, role]);
 
   React.useEffect(() => {
     if (role !== "MARKETER") return;
@@ -8536,17 +8791,19 @@ function TodayTasksExecutionView({
     if (delay <= 0) {
       void loadTasks();
       void refreshTaskCount();
+      void refreshCompletedTaskCount();
       return;
     }
 
     const timer = window.setTimeout(() => {
       void loadTasks();
       void refreshTaskCount();
+      void refreshCompletedTaskCount();
       scheduledRefreshTimers.current = scheduledRefreshTimers.current.filter((value) => value !== timer);
     }, delay + 250);
 
     scheduledRefreshTimers.current.push(timer);
-  }, [loadTasks, refreshTaskCount, role]);
+  }, [loadTasks, refreshCompletedTaskCount, refreshTaskCount, role]);
 
   const handleCreated = (row: TodayTaskApiRow) => {
     setEditingTask(null);
@@ -8563,6 +8820,7 @@ function TodayTasksExecutionView({
         : undefined;
     void loadTasks();
     void refreshTaskCount();
+    void refreshCompletedTaskCount();
     scheduleQueueRefreshAt(scheduledDate);
   };
 
@@ -8574,6 +8832,7 @@ function TodayTasksExecutionView({
         : undefined;
     void loadTasks();
     void refreshTaskCount();
+    void refreshCompletedTaskCount();
     scheduleQueueRefreshAt(scheduledDate);
   };
 
@@ -8674,10 +8933,11 @@ function TodayTasksExecutionView({
       setEditingTask(null);
       void loadTasks();
       void refreshTaskCount();
+      void refreshCompletedTaskCount();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Task delete failed.");
     }
-  }, [loadTasks, refreshTaskCount]);
+  }, [loadTasks, refreshCompletedTaskCount, refreshTaskCount]);
 
   const handleFollowUpDelete = React.useCallback(async (item: TodayWorkQueueItem) => {
     if (item.sourceType !== "FOLLOW_UP") return;
@@ -8692,10 +8952,11 @@ function TodayTasksExecutionView({
       setEditingFollowUp(null);
       void loadTasks();
       void refreshTaskCount();
+      void refreshCompletedTaskCount();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Follow-up delete failed.");
     }
-  }, [loadTasks, refreshTaskCount]);
+  }, [loadTasks, refreshCompletedTaskCount, refreshTaskCount]);
 
   const handleSimpleTaskComplete = React.useCallback(async () => {
     if (!confirmTask?.id) return;
@@ -8710,12 +8971,13 @@ function TodayTasksExecutionView({
       setConfirmTask(null);
       void loadTasks();
       void refreshTaskCount();
+      void refreshCompletedTaskCount();
     } catch (error) {
       setConfirmMessage(error instanceof Error ? error.message : "Task completion failed.");
     } finally {
       setConfirmPending(false);
     }
-  }, [confirmTask, loadTasks, refreshTaskCount]);
+  }, [confirmTask, loadTasks, refreshCompletedTaskCount, refreshTaskCount]);
 
   const handleCompleteRequest = React.useCallback((task: TodayWorkQueueItem) => {
     setActionError("");
@@ -8785,9 +9047,9 @@ function TodayTasksExecutionView({
     <>
       <div className="space-y-5">
         <PageHeader
-          title="Today's Tasks"
-          description="All assigned tasks, follow-ups and overdue work in one view."
-          actions={pageActions([{ label: "Add Task", icon: Plus, variant: "default", onClick: () => {
+          title={mode === "completed" ? "Completed Tasks" : "Today's Tasks"}
+          description={mode === "completed" ? "Finished customer work and task history." : "All assigned tasks, follow-ups and overdue work in one view."}
+          actions={mode === "completed" ? null : pageActions([{ label: "Add Task", icon: Plus, variant: "default", onClick: () => {
             setEditingTask(null);
             setOpen(true);
           } }])}
@@ -8796,14 +9058,11 @@ function TodayTasksExecutionView({
         {error ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
         {actionError ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{actionError}</p> : null}
 
-        <Card className="rounded-[16px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
-          <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
+        {mode !== "completed" ? <Card className="rounded-[16px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
+          <div className="flex flex-col gap-4 p-4">
             <TodayWorkFilterChips counts={counts} activeFilter={activeFilter} onChange={setActiveFilter} />
-            <Badge variant={counts.overdue ? "warning" : "neutral"} className="w-fit rounded-full px-3 py-1 text-xs font-bold">
-              {pendingCount} Pending
-            </Badge>
           </div>
-        </Card>
+        </Card> : null}
 
         {role === "SUPERVISOR" ? (
           <>
@@ -8890,12 +9149,41 @@ function TodayTasksExecutionView({
               onComplete={handleCompleteRequest}
             />
           </>
+        ) : mode === "completed" ? (
+          <DashboardCard
+            title="Completed Tasks"
+            action={<Badge variant="neutral">{completedCount} Completed</Badge>}
+            className="rounded-[16px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.05)]"
+          >
+            <CompletedWorkList
+              rows={completedTasks}
+              loading={loading}
+              viewerRole={role}
+              emptyMessage="No completed work yet."
+              onEditCompletedTask={handleEditCompletedTask}
+              onOpen={setDetailItem}
+            />
+          </DashboardCard>
         ) : (
           <>
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
+            <div className={cn("grid gap-5", role === "MARKETER" || mode === "active" ? "grid-cols-1" : "xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]")}>
               <DashboardCard
                 title={role === "ADMIN" ? "My Work Log" : "Today's Tasks"}
-                action={<Badge variant={counts.overdue ? "warning" : "neutral"}>{role === "ADMIN" ? adminManagedVisibleTasks.length : pendingCount} Pending</Badge>}
+                action={
+                  role === "MARKETER" ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={rolePath(role, "completed-tasks")}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
+                      >
+                        Completed Tasks
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
+                  ) : (
+                    <Badge variant={counts.overdue ? "warning" : "neutral"}>{role === "ADMIN" ? adminManagedVisibleTasks.length : pendingCount} Pending</Badge>
+                  )
+                }
                 className="rounded-[16px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.05)]"
               >
                 <TodayWorkQueueList
@@ -8914,7 +9202,7 @@ function TodayTasksExecutionView({
                 />
               </DashboardCard>
 
-              <DashboardCard
+              {mode === "active" || role === "MARKETER" ? null : <DashboardCard
                 title={role === "ADMIN" ? "My Completed Work" : "Completed Tasks"}
                 action={<Badge variant="neutral">{role === "ADMIN" ? adminManagedCompletedTasks.length : completedCount} Completed</Badge>}
                 className="rounded-[16px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.05)]"
@@ -8928,8 +9216,36 @@ function TodayTasksExecutionView({
                   onOpen={setDetailItem}
                   previewCount={6}
                 />
-              </DashboardCard>
+              </DashboardCard>}
             </div>
+            {role === "MARKETER" && mode === "active" ? (
+              <DashboardCard
+                title="Completed Tasks"
+                action={
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="neutral">{completedCount} Completed</Badge>
+                    <Link
+                      href={rolePath(role, "completed-tasks")}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                    >
+                      View All
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                }
+                className="rounded-[16px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.05)]"
+              >
+                <CompletedWorkList
+                  rows={completedTasks}
+                  loading={loading}
+                  viewerRole={role}
+                  emptyMessage="No completed work yet."
+                  onEditCompletedTask={handleEditCompletedTask}
+                  onOpen={setDetailItem}
+                  previewCount={6}
+                />
+              </DashboardCard>
+            ) : null}
             {role !== "MARKETER" ? (
               <MarketerTaskBoards
                 employees={workspace.employees}
@@ -8958,6 +9274,7 @@ function TodayTasksExecutionView({
           setEditingTask(null);
           void loadTasks();
           void refreshTaskCount();
+          void refreshCompletedTaskCount();
         }}
         role={role}
         workspace={workspace}
@@ -8975,6 +9292,7 @@ function TodayTasksExecutionView({
           setEditingFollowUp(null);
           void loadTasks();
           void refreshTaskCount();
+          void refreshCompletedTaskCount();
         }}
       />
       <TaskCompleteConfirmModal
@@ -9046,7 +9364,7 @@ function TodayTasksExecutionView({
             })()}
             {(() => {
               const detailContent = resolveTaskContentSnapshot(detailItem);
-              const filteredStepNotes = filterDuplicateStepNotes(detailItem.stepNotes, detailContent.note);
+              const communicationStepNotes = filterDuplicateStepNotes(detailItem.stepNotes, detailContent.note).filter((entry) => entry.source === "COMMUNICATION");
               return (
                 <>
                   <div className="grid gap-3">
@@ -9057,7 +9375,6 @@ function TodayTasksExecutionView({
                     {detailItem.reminder !== "-" ? <InfoLine label="Reminder" value={taskReminderLabel(detailItem.reminder)} /> : null}
                     <InfoLine label="Assigned At" value={detailItem.assignedAtLabel} />
                     {role !== "MARKETER" ? <InfoLine label="Assigned To" value={detailItem.assignedTo} /> : null}
-                    {"companyPrimaryPhone" in detailItem ? <InfoLine label="Phone" value={detailItem.companyPrimaryPhone || "-"} /> : null}
                     {detailItem.statusKey === "COMPLETED" ? <InfoLine label="Completed At" value={detailItem.completedAtLabel} /> : null}
                     {detailItem.statusKey === "COMPLETED" ? <InfoLine label="Completed By" value={detailItem.completedBy} /> : null}
                   </div>
@@ -9065,7 +9382,7 @@ function TodayTasksExecutionView({
                     <p className="text-xs font-bold uppercase text-slate-500">Task Details</p>
                     <p className="mt-2 text-sm leading-7 text-slate-700">{detailContent.details}</p>
                   </div>
-                  <TaskNoteHistoryPanel note={detailContent.note} entries={filteredStepNotes} />
+                  <StepNotesHistoryPanel entries={communicationStepNotes} title="Short Notes" />
                 </>
               );
             })()}
@@ -9117,13 +9434,27 @@ export function TasksPage({
   workspace,
   initialActiveTasks,
   initialCompletedTasks,
+  previewMarketerId,
 }: {
   role: Role;
   workspace: CrmWorkspace;
   initialActiveTasks?: TodayWorkQueueItem[];
   initialCompletedTasks?: CompletedWorkItem[];
+  previewMarketerId?: string;
 }) {
-  return <TodayTasksExecutionView role={role} workspace={workspace} initialActiveTasks={initialActiveTasks} initialCompletedTasks={initialCompletedTasks} />;
+  return <TodayTasksExecutionView role={role} workspace={workspace} initialActiveTasks={initialActiveTasks} initialCompletedTasks={initialCompletedTasks} previewMarketerId={previewMarketerId} mode={role === "MARKETER" ? "active" : "all"} />;
+}
+
+export function CompletedTasksPage({
+  role,
+  workspace,
+  initialCompletedTasks,
+}: {
+  role: Role;
+  workspace: CrmWorkspace;
+  initialCompletedTasks?: CompletedWorkItem[];
+}) {
+  return <TodayTasksExecutionView role={role} workspace={workspace} initialActiveTasks={[]} initialCompletedTasks={initialCompletedTasks} mode="completed" />;
 }
 
 function fallbackFollowUpPageData(workspace: CrmWorkspace): FollowUpPageData {

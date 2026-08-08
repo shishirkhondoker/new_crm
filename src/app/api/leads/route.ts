@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createLeadEntry, LeadInputError, listLeads, type LeadInput } from "@/lib/lead-center";
+import { resolvePreviewActor } from "@/lib/preview-actor";
 import { requireRequestUser } from "@/lib/request-user";
 
 export const runtime = "nodejs";
@@ -13,6 +14,10 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
+    const actor = await resolvePreviewActor(
+      { id: auth.user.id, role: auth.user.role, name: auth.user.name },
+      searchParams.get("previewMarketerId"),
+    );
     const result = await listLeads({
       search: searchParams.get("search") ?? undefined,
       status: searchParams.get("status") ?? undefined,
@@ -20,7 +25,7 @@ export async function GET(request: Request) {
       assignedToId: searchParams.get("assignedToId") ?? undefined,
       page: Number(searchParams.get("page") ?? 1),
       pageSize: Number(searchParams.get("pageSize") ?? 10),
-    }, { id: auth.user.id, role: auth.user.role });
+    }, { id: actor.id, role: actor.role });
 
     return NextResponse.json({ success: true, ...result });
   } catch (error) {

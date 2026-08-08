@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildCustomerScopeWhere, getCustomerAssignableOwners, resolveCustomerOwnerId } from "@/lib/customer-ownership";
 import { getPrisma } from "@/lib/prisma";
+import { resolvePreviewActor } from "@/lib/preview-actor";
 import { requireRequestUser } from "@/lib/request-user";
 
 export const runtime = "nodejs";
@@ -264,9 +265,13 @@ export async function GET(request: Request) {
     const city = (searchParams.get("city") || "").trim();
     const industry = (searchParams.get("industry") || "").trim();
     const assignedToId = (searchParams.get("assignedToId") || "").trim();
+    const actor = await resolvePreviewActor(
+      { id: auth.user.id, role: auth.user.role, name: auth.user.name },
+      searchParams.get("previewMarketerId"),
+    );
     const where = await buildCustomerScopeWhere(
       prisma,
-      { id: auth.user.id, role: auth.user.role },
+      { id: actor.id, role: actor.role },
       {
         search,
         city,
@@ -275,7 +280,7 @@ export async function GET(request: Request) {
         assignedToId,
       },
     );
-    const assignableOwners = await getCustomerAssignableOwners(prisma, { id: auth.user.id, role: auth.user.role });
+    const assignableOwners = await getCustomerAssignableOwners(prisma, { id: actor.id, role: actor.role });
 
     const totalCount = await prisma.customerCompany.count({ where });
     const rows = await prisma.customerCompany.findMany({

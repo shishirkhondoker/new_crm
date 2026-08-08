@@ -30,6 +30,7 @@ export function DataTable<TData extends object>({
   globalFilterValue,
   onGlobalFilterValueChange,
   onVisibleRowsChange,
+  onPageRowsChange,
   onRowClick,
 }: {
   data: TData[];
@@ -38,12 +39,14 @@ export function DataTable<TData extends object>({
   globalFilterValue?: string;
   onGlobalFilterValueChange?: (value: string) => void;
   onVisibleRowsChange?: (rows: TData[]) => void;
+  onPageRowsChange?: (rows: TData[]) => void;
   onRowClick?: (row: TData) => void;
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilterState, setGlobalFilterState] = React.useState("");
   const [columnVisibility, setColumnVisibility] = React.useState<Record<string, boolean>>({});
   const lastVisibleRowsRef = React.useRef<TData[]>([]);
+  const lastPageRowsRef = React.useRef<TData[]>([]);
   const globalFilter = globalFilterValue ?? globalFilterState;
   const setGlobalFilter = onGlobalFilterValueChange ?? setGlobalFilterState;
 
@@ -73,6 +76,16 @@ export function DataTable<TData extends object>({
     if (!changed) return;
     lastVisibleRowsRef.current = nextRows;
     onVisibleRowsChange(nextRows);
+  });
+
+  React.useEffect(() => {
+    if (!onPageRowsChange) return;
+    const nextRows = table.getRowModel().rows.map((row) => row.original);
+    const prevRows = lastPageRowsRef.current;
+    const changed = prevRows.length !== nextRows.length || prevRows.some((row, index) => row !== nextRows[index]);
+    if (!changed) return;
+    lastPageRowsRef.current = nextRows;
+    onPageRowsChange(nextRows);
   });
 
   return (

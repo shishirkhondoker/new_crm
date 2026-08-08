@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTodayWorkQueue, type TaskPriorityFilter } from "@/lib/task-center";
+import { resolvePreviewActor } from "@/lib/preview-actor";
 import { requireRequestUser } from "@/lib/request-user";
 
 export const runtime = "nodejs";
@@ -19,12 +20,12 @@ export async function GET(request: Request) {
       ? rawPriority as TaskPriorityFilter
       : "ALL";
 
+    const actor = await resolvePreviewActor(
+      { id: auth.user.id, role: auth.user.role, name: auth.user.name },
+      searchParams.get("previewMarketerId"),
+    );
     const rows = await getTodayWorkQueue(
-      {
-        id: auth.user.id,
-        role: auth.user.role,
-        name: auth.user.name,
-      },
+      actor,
       {
         company,
         priority,

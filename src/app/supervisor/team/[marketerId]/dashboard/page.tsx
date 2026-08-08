@@ -4,7 +4,7 @@ import { MarketerDashboard } from "@/components/crm/dashboard-pages";
 import { MarketerDashboardPreviewPanel } from "@/components/crm/resource-pages";
 import { requireCurrentUser } from "@/lib/auth";
 import { getMarketerScopeUserIds } from "@/lib/customer-ownership";
-import { getCrmWorkspace, getDashboardWorkspace } from "@/lib/crm-data";
+import { getCrmWorkspace, getFollowUpPageData } from "@/lib/crm-data";
 import { getPrisma } from "@/lib/prisma";
 import { getCompletedWorkItems, getTodayWorkQueue, getUpcomingTasks } from "@/lib/task-center";
 
@@ -33,12 +33,13 @@ export default async function SupervisorMarketerDashboardPreviewPage({
 
   const marketerActor = { id: marketer.id, role: "MARKETER" as const, name: marketer.name };
 
-  const [viewerWorkspace, marketerWorkspace, activeTasks, upcomingTasks, completedTasks] = await Promise.all([
+  const [viewerWorkspace, marketerWorkspace, activeTasks, upcomingTasks, completedTasks, followUpPage] = await Promise.all([
     getCrmWorkspace("SUPERVISOR", viewer),
-    getDashboardWorkspace("MARKETER", marketerActor),
+    getCrmWorkspace("MARKETER", marketerActor),
     getTodayWorkQueue(marketerActor),
     getUpcomingTasks(marketerActor),
     getCompletedWorkItems(marketerActor),
+    getFollowUpPageData("MARKETER", marketerActor, {}),
   ]);
 
   return (
@@ -49,12 +50,21 @@ export default async function SupervisorMarketerDashboardPreviewPage({
       followUpCount={viewerWorkspace.followUpSummary.actionable}
       sidebarCounts={viewerWorkspace.sidebarCounts}
     >
-      <MarketerDashboardPreviewPanel role="SUPERVISOR" marketerId={marketer.id} marketerName={marketer.name}>
-        <MarketerDashboard
-          workspace={marketerWorkspace}
-          initialTaskSnapshot={{ activeTasks, upcomingTasks, completedTasks }}
-        />
-      </MarketerDashboardPreviewPanel>
+      <MarketerDashboardPreviewPanel
+        role="SUPERVISOR"
+        marketerId={marketer.id}
+        marketerName={marketer.name}
+        workspace={marketerWorkspace}
+        initialActiveTasks={activeTasks}
+        initialCompletedTasks={completedTasks}
+        followUpPage={followUpPage}
+        dashboardContent={
+          <MarketerDashboard
+            workspace={marketerWorkspace}
+            initialTaskSnapshot={{ activeTasks, upcomingTasks, completedTasks }}
+          />
+        }
+      />
     </AppShell>
   );
 }

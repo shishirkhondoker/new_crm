@@ -56,26 +56,26 @@ export function DashboardMetricCard({
   const content = (
     <Card
       className={cn(
-        "group relative h-full overflow-hidden rounded-[22px] border-0 p-0 shadow-[0_18px_36px_rgba(15,23,42,0.14)]",
-        href ? "cursor-pointer transition duration-200 hover:shadow-[0_22px_42px_rgba(15,23,42,0.18)]" : "",
+        "group relative h-full overflow-hidden rounded-[22px] border border-white/20 p-0 shadow-[0_18px_40px_rgba(15,23,42,0.12)] transition-all duration-300",
+        href ? "cursor-pointer hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[0_26px_54px_rgba(15,23,42,0.18)]" : "",
         className,
       )}
       style={{ background: tone }}
       title={tooltip ?? helper}
     >
-      <div className="relative flex h-full min-h-[96px] flex-col justify-between p-2.5 text-white sm:min-h-[104px] sm:p-3">
-        <div className="flex items-start justify-between gap-4">
-          <p className="max-w-[12rem] text-[10px] font-black uppercase tracking-[0.13em] text-white/78 sm:tracking-[0.16em]">{title}</p>
-          <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/12 text-white shadow-sm backdrop-blur-sm sm:h-9 sm:w-9", iconTone)}>
+      <div className="relative flex h-full min-h-[92px] flex-col justify-between p-3 text-white sm:min-h-[98px] sm:p-3.5">
+        <div className="flex items-start justify-between gap-3">
+          <p className="max-w-[12rem] text-[9px] font-black uppercase tracking-[0.12em] text-white/90 sm:text-[10px]">{title}</p>
+          <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm backdrop-blur-sm sm:h-9 sm:w-9", iconTone)}>
             <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </div>
         </div>
 
-        <div className="mt-2 sm:mt-2.5">
-          <p className="text-[1.3rem] font-black leading-none tracking-[-0.04em] text-white sm:text-[1.5rem]">{value}</p>
-          <p className="mt-0.5 line-clamp-2 text-[10px] leading-3.5 text-white/78 sm:text-[11px] sm:leading-4">{helper}</p>
+        <div className="mt-1.5">
+          <p className="text-[1.45rem] font-black leading-none tracking-[-0.04em] text-white sm:text-[1.65rem]">{value}</p>
+          <p className="mt-1 line-clamp-1 text-[10px] font-medium leading-4 text-white/88 sm:text-[11px]">{helper}</p>
           {href ? (
-            <p className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.1em] text-white/88 transition group-hover:text-white">
+            <p className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.1em] text-white/92 transition group-hover:text-white sm:text-[10px]">
               View Details
             </p>
           ) : null}

@@ -786,15 +786,15 @@ export function AppHeader({
   ]);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
-      <div className="flex min-h-14 items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:min-h-16 lg:px-6">
+    <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 shadow-[0_8px_30px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+      <div className="flex min-h-16 items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5 lg:min-h-[72px] lg:px-7">
         <Button type="button" variant="outline" size="icon" className="lg:hidden" onClick={onOpenSidebar} aria-label="Open sidebar">
           <Menu className="h-4 w-4" />
         </Button>
 
         <div ref={searchRef} className="relative hidden flex-1 md:block">
-          <div className="relative max-w-xl">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <div className="relative max-w-2xl">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               ref={searchInputRef}
               value={searchQuery}
@@ -843,7 +843,7 @@ export function AppHeader({
                   router.push(communicationSearchHref);
                 }
               }}
-              className="pl-9 pr-10"
+              className="h-12 rounded-full border-slate-200 bg-white pl-11 pr-10 text-[15px] font-medium text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.06)] transition-all duration-300 placeholder:text-slate-500 focus:bg-white focus:shadow-[0_12px_30px_rgba(37,99,235,0.12)]"
               placeholder="Search company, phone number, call, follow-up, quotation..."
             />
             {searchQuery ? (

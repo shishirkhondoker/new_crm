@@ -31,6 +31,7 @@ export default async function Page() {
     coldCustomerCount,
     suggestionCount,
     todayTaskBadgeCount,
+    completedTaskCount,
   followUpOverdueCount,
   followUpTodayCount,
   followUpUpcomingCount,
@@ -56,6 +57,7 @@ export default async function Page() {
         },
       })
       : Promise.resolve(0),
+    hasScope ? prisma.task.count({ where: { ...taskWhere, status: "COMPLETED" } }) : Promise.resolve(0),
     hasScope
       ? prisma.followUp.count({
         where: {
@@ -161,6 +163,7 @@ export default async function Page() {
         customers: customerCount,
         coldCustomers: coldCustomerCount,
         tasks: todayTaskBadgeCount,
+        completedTasks: completedTaskCount + followUpCompletedCount,
         todaysPlan: todaysPlanCount + todayTaskBadgeCount + followUpBadgeCount,
         products: activeProductCount,
         rewards: rewardSum._sum.points ?? 0,

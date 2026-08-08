@@ -13,11 +13,13 @@ type SidebarCounts = Pick<CrmWorkspace, "sidebarCounts">["sidebarCounts"];
 
 type TaskCounterContextValue = {
   taskCount: number;
+  completedTaskCount: number;
   leadCount: number;
   customerCount: number;
   coldCustomerCount: number;
   suggestionCount: number;
   refreshTaskCount: () => Promise<void>;
+  refreshCompletedTaskCount: () => Promise<void>;
   refreshLeadCount: () => Promise<void>;
   refreshCustomerCount: () => Promise<void>;
   refreshColdCustomerCount: () => Promise<void>;
@@ -55,6 +57,12 @@ function parseTaskCount(payload: unknown) {
   return rows.length;
 }
 
+function parseCompletedTaskCount(payload: unknown) {
+  const rows = typeof payload === "object" && payload !== null ? (payload as { rows?: unknown }).rows : undefined;
+  if (!Array.isArray(rows)) return 0;
+  return rows.length;
+}
+
 function parseLeadCount(payload: unknown) {
   const total = typeof payload === "object" && payload !== null ? (payload as { total?: unknown }).total : undefined;
   const parsed = Number(total);
@@ -86,12 +94,14 @@ function parseSuggestionCount(payload: unknown) {
 
 function useSidebarCounterSync(
   sidebarTaskCount: number | undefined,
+  sidebarCompletedTaskCount: number | undefined,
   sidebarLeadCount: number | undefined,
   sidebarCustomerCount: number | undefined,
   sidebarColdCustomerCount: number | undefined,
   sidebarSuggestionCount: number | undefined,
 ) {
   const [taskCount, setTaskCount] = React.useState(sidebarTaskCount ?? 0);
+  const [completedTaskCount, setCompletedTaskCount] = React.useState(sidebarCompletedTaskCount ?? 0);
   const [leadCount, setLeadCount] = React.useState(sidebarLeadCount ?? 0);
   const [customerCount, setCustomerCount] = React.useState(sidebarCustomerCount ?? 0);
   const [coldCustomerCount, setColdCustomerCount] = React.useState(sidebarColdCustomerCount ?? 0);
@@ -104,6 +114,18 @@ function useSidebarCounterSync(
 
       const payload = await response.json();
       setTaskCount(parseTaskCount(payload));
+    } catch {
+      // keep the previous count if the endpoint temporarily fails
+    }
+  }, []);
+
+  const refreshCompletedTaskCount = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/tasks/completed", { cache: "no-store" });
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      setCompletedTaskCount(parseCompletedTaskCount(payload));
     } catch {
       // keep the previous count if the endpoint temporarily fails
     }
@@ -162,6 +184,10 @@ function useSidebarCounterSync(
   }, [sidebarTaskCount]);
 
   React.useEffect(() => {
+    setCompletedTaskCount(sidebarCompletedTaskCount ?? 0);
+  }, [sidebarCompletedTaskCount]);
+
+  React.useEffect(() => {
     setLeadCount(sidebarLeadCount ?? 0);
   }, [sidebarLeadCount]);
 
@@ -181,6 +207,9 @@ function useSidebarCounterSync(
     if (sidebarTaskCount === undefined) {
       void refreshTaskCount();
     }
+    if (sidebarCompletedTaskCount === undefined) {
+      void refreshCompletedTaskCount();
+    }
     if (sidebarLeadCount === undefined) {
       void refreshLeadCount();
     }
@@ -193,15 +222,17 @@ function useSidebarCounterSync(
     if (sidebarSuggestionCount === undefined) {
       void refreshSuggestionCount();
     }
-  }, [refreshColdCustomerCount, refreshCustomerCount, refreshLeadCount, refreshSuggestionCount, refreshTaskCount, sidebarColdCustomerCount, sidebarCustomerCount, sidebarLeadCount, sidebarSuggestionCount, sidebarTaskCount]);
+  }, [refreshColdCustomerCount, refreshCompletedTaskCount, refreshCustomerCount, refreshLeadCount, refreshSuggestionCount, refreshTaskCount, sidebarColdCustomerCount, sidebarCompletedTaskCount, sidebarCustomerCount, sidebarLeadCount, sidebarSuggestionCount, sidebarTaskCount]);
 
   return {
     taskCount,
+    completedTaskCount,
     leadCount,
     customerCount,
     coldCustomerCount,
     suggestionCount,
     refreshTaskCount,
+    refreshCompletedTaskCount,
     refreshLeadCount,
     refreshCustomerCount,
     refreshColdCustomerCount,
@@ -294,11 +325,13 @@ export function useTaskCounterContext() {
   if (!context) {
     return {
       taskCount: 0,
+      completedTaskCount: 0,
       leadCount: 0,
       customerCount: 0,
       coldCustomerCount: 0,
       suggestionCount: 0,
       refreshTaskCount: async () => {},
+      refreshCompletedTaskCount: async () => {},
       refreshLeadCount: async () => {},
       refreshCustomerCount: async () => {},
       refreshColdCustomerCount: async () => {},
@@ -350,17 +383,20 @@ export function AppShell({
 }) {
   const {
     taskCount,
+    completedTaskCount,
     leadCount,
     customerCount,
     coldCustomerCount,
     suggestionCount,
     refreshTaskCount,
+    refreshCompletedTaskCount,
     refreshLeadCount,
     refreshCustomerCount,
     refreshColdCustomerCount,
     refreshSuggestionCount,
   } = useSidebarCounterSync(
     sidebarCounts?.tasks,
+    sidebarCounts?.completedTasks,
     sidebarCounts?.leads,
     sidebarCounts?.customers,
     sidebarCounts?.coldCustomers,
@@ -380,6 +416,7 @@ export function AppShell({
         customers: customerCount,
         coldCustomers: coldCustomerCount,
         tasks: taskCount,
+        completedTasks: completedTaskCount,
         todaysPlan: 0,
         products: 0,
         rewards: 0,
@@ -391,21 +428,43 @@ export function AppShell({
       ...sidebarCounts,
       leads: leadCount,
       tasks: taskCount,
+      completedTasks: completedTaskCount,
       customers: customerCount,
       coldCustomers: coldCustomerCount,
       suggestions: suggestionCount,
     };
-  }, [coldCustomerCount, customerCount, leadCount, sidebarCounts, suggestionCount, taskCount]);
+  }, [coldCustomerCount, completedTaskCount, customerCount, leadCount, sidebarCounts, suggestionCount, taskCount]);
 
   const performLiveSync = React.useCallback((reason: "focus" | "visible") => {
     window.dispatchEvent(new CustomEvent(CRM_LIVE_SYNC_EVENT, { detail: { reason, at: Date.now() } }));
     void refreshTaskCount();
+    void refreshCompletedTaskCount();
     void refreshLeadCount();
     void refreshCustomerCount();
     void refreshColdCustomerCount();
     void refreshSuggestionCount();
     void refreshNotifications();
-  }, [refreshColdCustomerCount, refreshCustomerCount, refreshLeadCount, refreshNotifications, refreshSuggestionCount, refreshTaskCount]);
+  }, [refreshColdCustomerCount, refreshCompletedTaskCount, refreshCustomerCount, refreshLeadCount, refreshNotifications, refreshSuggestionCount, refreshTaskCount]);
+
+  React.useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+
+    const navigationEntry = window.performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    const isReload = navigationEntry?.type === "reload";
+    if (!isReload) return;
+
+    const scrollToTop = () => window.scrollTo(0, 0);
+    scrollToTop();
+    const frame = window.requestAnimationFrame(scrollToTop);
+    const timeout = window.setTimeout(scrollToTop, 0);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!liveSyncEnabled) return;
@@ -435,11 +494,13 @@ export function AppShell({
     <TaskCounterContext.Provider
       value={{
         taskCount,
+        completedTaskCount,
         leadCount,
         customerCount,
         coldCustomerCount,
         suggestionCount,
         refreshTaskCount,
+        refreshCompletedTaskCount,
         refreshLeadCount,
         refreshCustomerCount,
         refreshColdCustomerCount,
@@ -447,7 +508,7 @@ export function AppShell({
       }}
     >
       <NotificationCenterContext.Provider value={notificationCenter}>
-      <div className="min-h-screen bg-slate-50 text-slate-950">
+      <div className="min-h-screen bg-[#F8FAFC] text-slate-950">
         <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">
           <AppSidebar
             role={role}
@@ -512,7 +573,7 @@ export function AppShell({
         <div className={cn("transition-[padding] duration-300", collapsed ? "lg:pl-[82px]" : "lg:pl-[248px]")}>
           <AppHeader role={role} user={shellUser} unreadCount={notificationCenter.unreadCount} onOpenSidebar={() => setMobileOpen(true)} />
           <main
-            className="w-full min-w-0 max-w-none space-y-4 px-3 py-4 sm:px-4 sm:py-5 md:space-y-5 md:px-5 lg:px-6 lg:py-6 xl:px-8 2xl:px-10"
+            className="w-full min-w-0 max-w-none space-y-5 px-3 py-5 sm:px-5 sm:py-6 md:space-y-6 lg:px-7 lg:py-7 xl:px-8 2xl:px-10"
           >
             {children}
           </main>

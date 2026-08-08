@@ -602,6 +602,7 @@ export type CrmWorkspace = {
     customers: number;
     coldCustomers: number;
     tasks: number;
+    completedTasks: number;
     todaysPlan: number;
     products: number;
     rewards: number;
@@ -3991,6 +3992,7 @@ export async function getCrmWorkspace(role: Role, user: ShellUser, options?: Tea
       customers: customerCount,
       coldCustomers: coldCustomerCount,
       tasks: todayWorkItems.length,
+      completedTasks: followUpSummary.completed + taskRows.filter((task) => task.status === "COMPLETED").length,
       todaysPlan: todaysPlanCount + todayTaskBadgeCount + followUpBadgeCount,
       products: activeProductCount,
       rewards: rewardAggregate._sum.points ?? 0,
@@ -4143,6 +4145,7 @@ export async function getDashboardWorkspace(role: Role, user: ShellUser, options
     callActivityLogs,
     unreadCount,
     pendingTaskCount,
+    completedTaskCount,
     meetingTaskCount,
     meetingFollowUpCount,
     meetingPlanCount,
@@ -4261,6 +4264,7 @@ export async function getDashboardWorkspace(role: Role, user: ShellUser, options
         where: combineWhere(taskWhere, { status: { not: "COMPLETED" } }),
       })
       : Promise.resolve(0),
+    prisma.task.count({ where: combineWhere(taskWhere, { status: "COMPLETED" }) }),
     prisma.task.count({ where: meetingTaskWhere }),
     prisma.followUp.count({ where: meetingFollowUpWhere }),
     prisma.todayPlan.count({ where: meetingPlanWhere }),
@@ -4691,6 +4695,7 @@ export async function getDashboardWorkspace(role: Role, user: ShellUser, options
       customers: customerCount,
       coldCustomers: coldCustomerCount,
       tasks: activeTodayWorkCount,
+      completedTasks: followUpSummary.completed + completedTaskCount,
       todaysPlan: todaysPlanCount + unifiedTodayWorkCount,
       products: activeProductCount,
       rewards: rewardAggregate._sum.points ?? 0,

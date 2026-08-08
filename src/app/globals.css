@@ -70,7 +70,34 @@ body {
     radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 34rem),
     linear-gradient(180deg, #f8fbff 0%, #f8fafc 38%, #eef3fb 100%);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: Inter, "SF Pro Display", "Plus Jakarta Sans", Manrope, var(--font-sans), system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: #111827;
+  letter-spacing: -0.03em;
+}
+
+.premium-dashboard-shell {
+  color: #374151;
+}
+
+.premium-dashboard-shell h1 {
+  font-size: clamp(2rem, 2.6vw, 2.25rem);
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+.premium-dashboard-shell h2,
+.premium-dashboard-shell h3 {
+  font-weight: 700;
 }
 
 button,

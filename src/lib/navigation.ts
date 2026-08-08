@@ -2,6 +2,7 @@ import {
   Award,
   BriefcaseBusiness,
   CalendarClock,
+  CheckCircle2,
   ClipboardCheck,
   FileBarChart,
   LayoutDashboard,
@@ -74,6 +75,7 @@ export const sidebarMenus: Record<Role, { label: string; href: string; icon: typ
   MARKETER: [
     { label: "Dashboard", href: "/marketer/dashboard", icon: LayoutDashboard },
     { label: "Today's Task", href: "/marketer/tasks", icon: ClipboardCheck },
+    { label: "Completed Tasks", href: "/marketer/completed-tasks", icon: CheckCircle2 },
     { label: "Follow-ups", href: "/marketer/follow-ups", icon: PhoneCall },
     { label: "Products", href: "/marketer/products", icon: Package },
     { label: "Customers", href: "/marketer/customers", icon: BriefcaseBusiness },
